@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Search & Book Rides</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="container">
+    <h2>Search & Book a Ride</h2>
+    <form id="searchForm">
+        <label>From: <input type="text" name="source" required></label>
+        <label>To: <input type="text" name="destination" required></label>
+        <label>Date: <input type="date" name="date" required></label>
+        <button type="submit">Search</button>
+    </form>
+    
+    <div id="results"></div>
+    
+    <script>
+const token = localStorage.getItem('token');
+if (!token) {
+    alert('Please login first');
+    window.location.href = '/login.html';
+}
+
+document.getElementById('searchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const source = document.querySelector('input[name="source"]').value;
+    const destination = document.querySelector('input[name="destination"]').value;
+    const date = document.querySelector('input[name="date"]').value;
+    
+    console.log('Searching for rides with token:', token ? 'YES' : 'NO');
+    const resp = await fetch(`/rides/search?source=${source}&destination=${destination}&date=${date}`, {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    });
+    console.log('Search response status:', resp.status);
+    const rides = await resp.json();
+    
+    if (rides.length === 0) {
+        document.getElementById('results').innerHTML = '<p>No rides found</p>';
+        return;
+    }
+    
+    let html = '<h3>Available Rides</h3>';
+    rides.forEach(r => {
+        html += `<div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:4px;">
+            <p><strong>${r.source} → ${r.destination}</strong></p>
+            <p>Date: ${r.date} | Time: ${r.time}</p>
+            <p>Driver: ${r.driverName} | Vehicle: ${r.vehicleModel}</p>
+            <p>Available Seats: ${r.availableSeats} | Price/Seat: $${r.pricePerSeat}</p>
+            <label>Seats to book: <input type="number" id="seats_${r.id}" min="1" max="${r.availableSeats}" value="1"></label>
+            <button onclick="bookRide(${r.id})">Book Now</button>
+        </div>`;
+    });
+    document.getElementById('results').innerHTML = html;
+});
+
+async function bookRide(rideId) {
+    const seats = parseInt(document.getElementById('seats_' + rideId).value);
+    const resp = await fetch('/bookings/book', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ rideId, seats })
+    });
+    
+    if (resp.ok) {
+        const booking = await resp.json();
+        alert(`Booking confirmed! Total: $${booking.totalPrice}`);
+        document.getElementById('searchForm').reset();
+        document.getElementById('results').innerHTML = '';
+    } else {
+        alert('Booking failed');
+    }
+}
+    </script>
+</div>
+</body>
+</html>

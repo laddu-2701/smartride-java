@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Ride Sharing - Ultimate Carpooling Experience</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .navbar-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 1.5rem;
+            list-style: none;
+        }
+
+        .navbar-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+        }
+
+        .navbar-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 193, 7, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(33, 150, 243, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+            z-index: 2;
+            position: relative;
+        }
+
+        .hero-text h1 {
+            font-size: 3.5rem;
+            color: white;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            animation: slideInLeft 0.8s ease-out;
+            font-weight: 900;
+        }
+
+        .hero-text p {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 2rem;
+            line-height: 1.8;
+            animation: slideInLeft 0.8s ease-out 0.1s both;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            animation: slideInLeft 0.8s ease-out 0.2s both;
+        }
+
+        .btn {
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            border: none;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%);
+            color: #333;
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(255, 107, 107, 0.6);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-secondary:hover {
+            background: white;
+            color: #667eea;
+            transform: translateY(-4px);
+        }
+
+        .hero-image {
+            position: relative;
+            animation: slideInRight 0.8s ease-out 0.2s both;
+        }
+
+        .car-showcase {
+            position: relative;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .car-image {
+            width: 100%;
+            max-width: 450px;
+            filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.3));
+            animation: carFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes carFloat {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-30px);
+            }
+        }
+
+        /* Features Section */
+        .features {
+            background: white;
+            padding: 5rem 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .features-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 3rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8f0ff 100%);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .feature-card:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .feature-card:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .feature-card:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-15px);
+            border-color: #667eea;
+            box-shadow: 0 20px 50px rgba(102, 126, 234, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        .feature-card:nth-child(2) .feature-icon {
+            animation-delay: 0.2s;
+        }
+
+        .feature-card:nth-child(3) .feature-icon {
+            animation-delay: 0.4s;
+        }
+
+        .feature-card:nth-child(4) .feature-icon {
+            animation-delay: 0.6s;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-15px);
+            }
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+
+        /* Pricing Section */
+        .pricing {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 5rem 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .pricing-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pricing-title {
+            text-align: center;
+            font-size: 2.5rem;
+            color: white;
+            margin-bottom: 3rem;
+            font-weight: 800;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .pricing-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .pricing-card:nth-child(2) {
+            animation-delay: 0.1s;
+            transform: scale(1.05);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .pricing-card:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .pricing-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .pricing-card.featured {
+            border: 3px solid #FFE66D;
+        }
+
+        .pricing-card.featured::before {
+            content: 'POPULAR';
+            position: absolute;
+            top: 0;
+            right: -25px;
+            background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%);
+            color: white;
+            padding: 0.5rem 3rem;
+            transform: rotate(45deg);
+            font-weight: 800;
+            font-size: 0.8rem;
+        }
+
+        .pricing-name {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .pricing-price {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-weight: 800;
+        }
+
+        .pricing-period {
+            color: #999;
+            margin-bottom: 2rem;
+        }
+
+        .pricing-features {
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+
+        .pricing-features li {
+            list-style: none;
+            padding: 0.7rem 0;
+            color: #666;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .pricing-features li:before {
+            content: '✓ ';
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .pricing-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .pricing-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .pricing-card.featured .pricing-btn {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%);
+            color: #333;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%);
+            padding: 4rem 2rem;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .cta-title {
+            font-size: 2.5rem;
+            color: white;
+            margin-bottom: 1rem;
+            font-weight: 800;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .cta-subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-text h1 {
+                font-size: 2rem;
+            }
+
+            .hero-text p {
+                font-size: 1rem;
+            }
+
+            .navbar-links {
+                gap: 0.5rem;
+            }
+
+            .pricing-card:nth-child(2) {
+                transform: scale(1);
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">
+                🚗 SmartRide
+            </a>
+            <ul class="navbar-links">
+                <li><a href="/search-rides.html">Search Rides</a></li>
+                <li><a href="/post-ride.html">Share Ride</a></li>
+                <li id="authNav" style="display:none;"><a href="/my-bookings.html">My Bookings</a></li>
+                <li><a href="/login.html">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1>Your Journey Starts Here</h1>
+                <p>Experience premium carpooling with verified drivers, affordable rates, and eco-friendly travel. Connect with thousands of commuters today!</p>
+                <div style="margin-bottom: 1.5rem;" id="authStatus"></div>
+                <div class="hero-buttons">
+                    <a href="/search-rides.html" class="btn btn-primary">🔍 Find a Ride</a>
+                    <a href="/post-ride.html" class="btn btn-secondary">📍 Share Your Ride</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="car-showcase">
+                    <svg class="car-image" viewBox="0 0 600 350" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="carMainGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+                                <stop offset="50%" style="stop-color:#E63946;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#A4161A;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="windowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#87CEEB;stop-opacity:0.8" />
+                                <stop offset="100%" style="stop-color:#4A90E2;stop-opacity:0.3" />
+                            </linearGradient>
+                        </defs>
+                        
+                        <!-- Shadow -->
+                        <ellipse cx="300" cy="310" rx="200" ry="30" fill="rgba(0,0,0,0.15)"/>
+                        
+                        <!-- Main Body -->
+                        <rect x="80" y="180" width="440" height="100" rx="30" fill="url(#carMainGrad)"/>
+                        
+                        <!-- Car Top -->
+                        <path d="M 150 180 Q 150 120 250 100 L 450 100 Q 550 120 550 180" fill="url(#carMainGrad)" opacity="0.95"/>
+                        
+                        <!-- Front Bumper (Glossy) -->
+                        <rect x="50" y="190" width="40" height="80" rx="15" fill="#C1121F"/>
+                        <ellipse cx="70" cy="195" rx="15" ry="8" fill="#FF8C8C" opacity="0.6"/>
+                        
+                        <!-- Headlights -->
+                        <circle cx="75" cy="205" r="12" fill="#FFD700"/>
+                        <circle cx="75" cy="230" r="12" fill="#FFD700"/>
+                        <circle cx="70" cy="205" r="5" fill="#FFFF00" opacity="0.8"/>
+                        
+                        <!-- Front Bumper Accent -->
+                        <rect x="55" y="220" width="30" height="30" rx="5" fill="#FFB700" opacity="0.6"/>
+                        
+                        <!-- Rear Bumper -->
+                        <rect x="510" y="190" width="40" height="80" rx="15" fill="#C1121F"/>
+                        
+                        <!-- Tail Lights -->
+                        <circle cx="525" cy="205" r="12" fill="#FF1744"/>
+                        <circle cx="525" cy="230" r="12" fill="#FF1744"/>
+                        
+                        <!-- Front Windows -->
+                        <rect x="160" y="130" width="100" height="50" rx="10" fill="url(#windowGrad)"/>
+                        <rect x="170" y="140" width="30" height="30" rx="5" fill="white" opacity="0.4"/>
+                        
+                        <!-- Rear Window -->
+                        <rect x="380" y="130" width="100" height="50" rx="10" fill="url(#windowGrad)"/>
+                        <rect x="420" y="140" width="30" height="30" rx="5" fill="white" opacity="0.4"/>
+                        
+                        <!-- Rear View Mirror -->
+                        <ellipse cx="140" cy="150" rx="12" ry="20" fill="#333"/>
+                        <ellipse cx="460" cy="150" rx="12" ry="20" fill="#333"/>
+                        
+                        <!-- Door Line -->
+                        <line x1="300" y1="180" x2="300" y2="270" stroke="#A4161A" stroke-width="3" stroke-dasharray="8,4"/>
+                        
+                        <!-- Wheel 1 (Front) -->
+                        <circle cx="180" cy="285" r="35" fill="#222"/>
+                        <circle cx="180" cy="285" r="28" fill="#444"/>
+                        <circle cx="180" cy="285" r="18" fill="#666"/>
+                        <circle cx="180" cy="285" r="12" fill="url(#carMainGrad)" opacity="0.4"/>
+                        <!-- Rim -->
+                        <circle cx="180" cy="285" r="8" fill="#AAA"/>
+                        <circle cx="175" cy="281" r="1.5" fill="white"/>
+                        <!-- Tire pattern -->
+                        <circle cx="180" cy="285" r="25" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="3,5" opacity="0.5"/>
+                        
+                        <!-- Wheel 2 (Rear) -->
+                        <circle cx="420" cy="285" r="35" fill="#222"/>
+                        <circle cx="420" cy="285" r="28" fill="#444"/>
+                        <circle cx="420" cy="285" r="18" fill="#666"/>
+                        <circle cx="420" cy="285" r="12" fill="url(#carMainGrad)" opacity="0.4"/>
+                        <!-- Rim -->
+                        <circle cx="420" cy="285" r="8" fill="#AAA"/>
+                        <circle cx="415" cy="281" r="1.5" fill="white"/>
+                        <!-- Tire pattern -->
+                        <circle cx="420" cy="285" r="25" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="3,5" opacity="0.5"/>
+                        
+                        <!-- Roof Rack -->
+                        <rect x="170" y="95" width="260" height="8" rx="4" fill="#333" opacity="0.7"/>
+                        
+                        <!-- License Plate -->
+                        <rect x="250" y="275" width="100" height="25" rx="4" fill="#FFD700"/>
+                        <text x="300" y="293" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="#000">SMARTRIDE</text>
+                        
+                        <!-- Glossy Effect on Body -->
+                        <path d="M 100 190 Q 200 140 350 135 Q 450 140 500 190" fill="white" opacity="0.15"/>
+                        
+                        <!-- Speed Lines -->
+                        <line x1="30" y1="200" x2="60" y2="200" stroke="white" stroke-width="3" opacity="0.4" stroke-dasharray="5,5"/>
+                        <line x1="20" y1="225" x2="50" y2="225" stroke="white" stroke-width="2" opacity="0.3" stroke-dasharray="5,5"/>
+                        <line x1="550" y1="210" x2="580" y2="210" stroke="white" stroke-width="3" opacity="0.4" stroke-dasharray="5,5"/>
+                        <line x1="560" y1="235" x2="590" y2="235" stroke="white" stroke-width="2" opacity="0.3" stroke-dasharray="5,5"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="features-container">
+            <h2 class="section-title">Why Choose SmartRide?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Save Money</h3>
+                    <p>Split costs and save up to 50% on your daily commute. Affordable pricing for everyone.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Verified & Safe</h3>
+                    <p>All drivers verified, real-time tracking, and 24/7 customer support for your safety.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌍</div>
+                    <h3>Eco-Friendly</h3>
+                    <p>Reduce carbon emissions together and contribute to a sustainable future.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⏱️</div>
+                    <h3>Always On Time</h3>
+                    <p>GPS tracking and smart routing ensures you reach on time, every time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section class="pricing">
+        <div class="pricing-container">
+            <h2 class="pricing-title">Simple, Transparent Pricing</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <div class="pricing-name">Basic</div>
+                    <div class="pricing-price">$9.99</div>
+                    <div class="pricing-period">per month</div>
+                    <ul class="pricing-features">
+                        <li>5 rides per month</li>
+                        <li>Basic support</li>
+                        <li>Standard insurance</li>
+                        <li>Cancel anytime</li>
+                    </ul>
+                    <button class="pricing-btn">Get Started</button>
+                </div>
+                <div class="pricing-card featured">
+                    <div class="pricing-name">Premium</div>
+                    <div class="pricing-price">$24.99</div>
+                    <div class="pricing-period">per month</div>
+                    <ul class="pricing-features">
+                        <li>Unlimited rides</li>
+                        <li>Priority support</li>
+                        <li>Premium insurance</li>
+                        <li>VIP perks</li>
+                    </ul>
+                    <button class="pricing-btn">Subscribe Now</button>
+                </div>
+                <div class="pricing-card">
+                    <div class="pricing-name">Enterprise</div>
+                    <div class="pricing-price">Custom</div>
+                    <div class="pricing-period">for teams</div>
+                    <ul class="pricing-features">
+                        <li>Bulk discounts</li>
+                        <li>Dedicated support</li>
+                        <li>Custom solutions</li>
+                        <li>Fleet management</li>
+                    </ul>
+                    <button class="pricing-btn">Contact Us</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <h2 class="cta-title">Ready to Start Your Journey?</h2>
+        <p class="cta-subtitle">Join thousands of happy riders and drivers today. No hidden fees, just transparent carpooling.</p>
+        <div class="cta-buttons">
+            <a href="/register.html" class="btn" style="background: white; color: #FF6B6B; border: none;">Create Account</a>
+            <a href="/search-rides.html" class="btn" style="background: transparent; color: white; border: 2px solid white;">Find a Ride</a>
+        </div>
+    </section>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const authStatus = document.getElementById('authStatus');
+        const authNav = document.getElementById('authNav');
+        
+        if (token) {
+            fetch('/auth/me', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            }).then(response => {
+                if (response.ok) {
+                    authStatus.innerHTML = '<p style="color: #4CAF50; font-weight: 600; font-size: 1rem;">✅ Welcome back! You\'re logged in</p>';
+                    authNav.style.display = 'block';
+                } else {
+                    localStorage.removeItem('token');
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+                localStorage.removeItem('token');
+            });
+        }
+    </script>
+</body>
+</html>

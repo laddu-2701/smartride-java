@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Bookings</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="container">
+    <h2>My Bookings</h2>
+    <div id="bookings"></div>
+    <script>
+const token = localStorage.getItem('token');
+if (!token) {
+    alert('Please login first');
+    window.location.href = '/login.html';
+}
+
+async function loadBookings() {
+    const resp = await fetch('/bookings/my-bookings', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const bookings = await resp.json();
+    
+    if (bookings.length === 0) {
+        document.getElementById('bookings').innerHTML = '<p>No bookings yet</p>';
+        return;
+    }
+    
+    let html = '';
+    bookings.forEach(b => {
+        html += `<div style="border:2px solid #28a745; padding:1rem; margin:0.5rem 0; border-radius:4px;">
+            <p><strong>Booking ID: ${b.id}</strong></p>
+            <p>Ride ID: ${b.rideId}</p>
+            <p>Seats Booked: ${b.seatsBooked}</p>
+            <p>Total Price: $${b.totalPrice}</p>
+        </div>`;
+    });
+    document.getElementById('bookings').innerHTML = html;
+}
+
+loadBookings();
+    </script>
+</div>
+</body>
+</html>

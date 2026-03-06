@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Driver Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="container">
+    <h2>Driver Dashboard - My Rides & Bookings</h2>
+    <a href="/post-ride.html"><button>Post New Ride</button></a>
+    <hr>
+    <div id="rides"></div>
+    <script>
+const token = localStorage.getItem('token');
+if (!token) {
+    alert('Please login first');
+    window.location.href = '/login.html';
+}
+
+async function loadRidesAndBookings() {
+    const resp = await fetch('/rides/my-rides', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const rides = await resp.json();
+    
+    if (rides.length === 0) {
+        document.getElementById('rides').innerHTML = '<p>No rides posted yet</p>';
+        return;
+    }
+    
+    let html = '';
+    for (const ride of rides) {
+        const bookResp = await fetch(`/bookings/ride-bookings?rideId=${ride.id}`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const bookings = await bookResp.json();
+        
+        html += `<div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:4px;">
+            <h3>${ride.source} → ${ride.destination}</h3>
+            <p>Date: ${ride.date} | Time: ${ride.time} | Available Seats: ${ride.availableSeats}</p>
+            <p>Vehicle: ${ride.vehicleModel} (${ride.licensePlate})</p>
+            <p>Price/Seat: $${ride.pricePerSeat}</p>
+            <h4>Passenger Bookings:</h4>`;
+            
+        if (bookings.length === 0) {
+            html += '<p><em>No bookings yet</em></p>';
+        } else {
+            bookings.forEach(b => {
+                html += `<div style="background:#f0f0f0; padding:0.5rem; margin:0.25rem 0; border-radius:2px;">
+                    <p>Passenger: ${b.passengerName} | Seats: ${b.seatsBooked} | Total: $${b.totalPrice}</p>
+                </div>`;
+            });
+        }
+        html += '</div>';
+    }
+    document.getElementById('rides').innerHTML = html;
+}
+
+loadRidesAndBookings();
+    </script>
+</div>
+</body>
+</html>

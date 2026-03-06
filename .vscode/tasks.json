@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "mvn package",
+            "type": "shell",
+            "command": "mvn clean package",
+            "group": "build",
+            "problemMatcher": ["$maven"],
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "label": "mvn spring-boot:run",
+            "type": "shell",
+            "command": "mvn spring-boot:run",
+            "group": "none",
+            "presentation": {
+                "reveal": "always"
+            }
+        }
+    ]
+}

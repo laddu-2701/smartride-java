@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Post a Ride</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="container">
+    <h2>Post a New Ride</h2>
+    <p><small>Vehicle details will be auto-filled from your profile</small></p>
+    <form id="postRideForm">
+        <label>Source: <input type="text" name="source" required></label>
+        <label>Destination: <input type="text" name="destination" required></label>
+        <label>Date: <input type="date" name="date" required></label>
+        <label>Time: <input type="time" name="time" required></label>
+        <label>Available Seats: <input type="number" name="availableSeats" min="1" required></label>
+        <label>Price Per Seat: <input type="number" name="pricePerSeat" step="0.01" min="0" required></label>
+        <button type="submit">Post Ride</button>
+    </form>
+    <div id="message"></div>
+    <hr>
+    <h3>Your Posted Rides</h3>
+    <div id="myRides"></div>
+    <script>
+const token = localStorage.getItem('token');
+if (!token) {
+    alert('Please login first');
+    window.location.href = '/login.html';
+}
+
+const form = document.getElementById('postRideForm');
+form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {};
+    new FormData(form).forEach((value, key) => data[key] = value);
+    
+    const resp = await fetch('/rides/post', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(data)
+    });
+    
+    if (resp.ok) {
+        document.getElementById('message').innerHTML = '<p style="color:green;">Ride posted successfully!</p>';
+        form.reset();
+        loadMyRides();
+    } else {
+        document.getElementById('message').innerHTML = '<p style="color:red;">Error posting ride</p>';
+    }
+});
+
+async function loadMyRides() {
+    const resp = await fetch('/rides/my-rides', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const rides = await resp.json();
+    let html = '';
+    rides.forEach(r => {
+        html += `<div style="border:1px solid #ccc; padding:1rem; margin:0.5rem 0;">
+            <p><strong>${r.source} → ${r.destination}</strong></p>
+            <p>Date: ${r.date} at ${r.time}</p>
+            <p>Available Seats: ${r.availableSeats} | Price/Seat: ${r.pricePerSeat}</p>
+        </div>`;
+    });
+    document.getElementById('myRides').innerHTML = html || '<p>No rides posted yet</p>';
+}
+
+loadMyRides();
+    </script>
+</div>
+</body>
+</html>

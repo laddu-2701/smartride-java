@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="container">
+    <h2>Register</h2>
+    <form id="registerForm">
+    <label>Name:<input type="text" name="name"></label>
+    <label>Email:<input type="email" name="email"></label>
+    <label>Phone:<input type="text" name="phone"></label>
+    <label>Password:<input type="password" name="password"></label>
+    <label>Role:
+        <select name="role">
+            <option value="PASSENGER">Passenger</option>
+            <option value="DRIVER">Driver</option>
+        </select>
+    </label>
+    <div id="driverFields" style="display:none;">
+        <label>Vehicle Model:<input type="text" name="vehicleModel"></label>
+        <label>License Plate:<input type="text" name="licensePlate"></label>
+        <label>Capacity:<input type="number" name="capacity" min="1"></label>
+    </div>
+    <button type="submit">Submit</button>
+    </form>
+    <script>
+console.log('=== REGISTER PAGE LOADED ===');
+const roleSelect = document.querySelector('select[name="role"]');
+const driverFields = document.getElementById('driverFields');
+
+function updateDriverFields() {
+    const isDriver = roleSelect.value === 'DRIVER';
+    driverFields.style.display = isDriver ? 'block' : 'none';
+    // disable inputs when not a driver so they aren't submitted accidentally
+    driverFields.querySelectorAll('input').forEach(i => i.disabled = !isDriver);
+}
+
+roleSelect.addEventListener('change', updateDriverFields);
+updateDriverFields(); // initialize on page load
+
+// submit registration via fetch
+const form = document.getElementById('registerForm');
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const data = {};
+    new FormData(form).forEach((value,key) => data[key]=typeof value === 'string' ? value.trim() : value);
+    fetch('/auth/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(r => {
+        if (r.ok) {
+            alert('Registration successful, please login');
+            window.location.href = '/login.html';
+        } else {
+            r.text().then(t => alert('Error: '+t));
+        }
+    }).catch(err => alert('Network error'));
+});
+</script>
+</div>
+</body>
+</html>
