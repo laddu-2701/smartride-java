@@ -17,6 +17,23 @@
 console.log('=== LOGIN PAGE LOADED ===');
 const loginForm = document.getElementById('loginForm');
 console.log('Form element found:', loginForm ? 'YES' : 'NO');
+
+    async function redirectToDashboard(token) {
+        const response = await fetch('/auth/me', {
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Unable to load user profile');
+        }
+
+        const user = await response.json();
+        const target = user.role === 'DRIVER' ? '/driver-dashboard.html' : '/passenger-dashboard.html';
+        window.location.href = target;
+    }
+
 loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
     const data = {};
@@ -39,8 +56,11 @@ loginForm.addEventListener('submit', function(e) {
                     localStorage.setItem('token', j.token);
                     console.log('Token stored in localStorage:', j.token.substring(0,20) + '...');
                     console.log('Token in localStorage after save:', localStorage.getItem('token'));
-                    alert('Login successful');
-                    window.location.href = '/';
+                    redirectToDashboard(j.token).catch(profileErr => {
+                        console.error('Profile redirect error:', profileErr);
+                        alert('Login successful, but dashboard lookup failed. Redirecting to home.');
+                        window.location.href = '/';
+                    });
                 } else {
                     alert('No token in response');
                 }

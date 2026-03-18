@@ -2,21 +2,181 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Driver Dashboard</title>
     <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.12/dist/lottie-player.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 </head>
 <body>
 <div class="container">
-    <h2>Driver Dashboard - My Rides & Bookings</h2>
-    <a href="/post-ride.html"><button>Post New Ride</button></a>
+    <header>
+        <h1>Driver Dashboard</h1>
+        <div id="driverSummary"></div>
+        <div id="driverUpgradeCard" style="display:none; margin-top:1rem; background:#fffbe6; border:1px solid #ffd76a; border-radius:8px; padding:1rem;">
+            <p style="margin:0 0 0.75rem; color:#6a4b00; font-weight:600;">You are currently registered as Passenger. Register as Driver to post rides.</p>
+            <button id="showDriverUpgradeFormBtn" type="button" style="margin-bottom:0.75rem;">Register as Driver</button>
+            <form id="driverUpgradeForm" style="display:none; gap:0.5rem;">
+                <label>Vehicle Model: <input type="text" name="vehicleModel" required></label>
+                <label>License Plate: <input type="text" name="licensePlate" required></label>
+                <label>Capacity: <input type="number" name="capacity" min="1" required></label>
+                <button type="submit">Submit Driver Details</button>
+            </form>
+            <div id="driverUpgradeMessage" style="margin-top:0.5rem;"></div>
+        </div>
+    </header>
+
+    <nav>
+        <a href="/">Home</a>
+        <a href="/passenger-dashboard.html">Passenger Dashboard</a>
+        <a href="/post-ride.html">Post Ride</a>
+        <a href="#" id="logoutBtn">Logout</a>
+    </nav>
+
+    <div style="display:grid; gap:1.5rem; grid-template-columns: 1.15fr 1fr; align-items:start;">
+        <section>
+            <h2>Share a Ride</h2>
+            <form id="postRideForm">
+                <label>Source: <input type="text" name="source" required></label>
+                <label>Destination: <input type="text" name="destination" required></label>
+                <label>Date: <input type="date" name="date" required></label>
+                <label>Time: <input type="time" name="time" required></label>
+                <label>Available Seats: <input type="number" name="availableSeats" min="1" required></label>
+                <label>Price Per Seat: <input type="number" name="pricePerSeat" step="0.01" min="0" required></label>
+                <button type="submit">Post Ride</button>
+            </form>
+            <div id="message"></div>
+        </section>
+
+        <section>
+            <h2>Driver Tips</h2>
+            <div style="display:flex; justify-content:center; margin:0.5rem 0 1rem;">
+                <lottie-player
+                    src="https://assets1.lottiefiles.com/packages/lf20_myejiggj.json"
+                    background="transparent"
+                    speed="1"
+                    style="width: 200px; height: 200px;"
+                    loop
+                    autoplay>
+                </lottie-player>
+            </div>
+            <div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:8px;">
+            </div>
+            <div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:8px;">
+            </div>
+        </section>
+    </div>
+
     <hr>
+    <h2>Your Posted Rides</h2>
+    <div id="liveFeed"></div>
     <div id="rides"></div>
+    <h2>Driver Transaction History</h2>
+    <div id="driverTransactions"></div>
     <script>
 const token = localStorage.getItem('token');
 if (!token) {
     alert('Please login first');
     window.location.href = '/login.html';
 }
+
+const driverSummary = document.getElementById('driverSummary');
+const ridesContainer = document.getElementById('rides');
+const postRideForm = document.getElementById('postRideForm');
+const message = document.getElementById('message');
+const logoutBtn = document.getElementById('logoutBtn');
+const driverUpgradeCard = document.getElementById('driverUpgradeCard');
+const showDriverUpgradeFormBtn = document.getElementById('showDriverUpgradeFormBtn');
+const driverUpgradeForm = document.getElementById('driverUpgradeForm');
+const driverUpgradeMessage = document.getElementById('driverUpgradeMessage');
+const liveFeed = document.getElementById('liveFeed');
+const driverTransactions = document.getElementById('driverTransactions');
+
+logoutBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    window.location.href = '/login.html';
+});
+
+async function loadDriverProfile() {
+    const response = await fetch('/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!response.ok) {
+        localStorage.removeItem('token');
+        window.location.href = '/login.html';
+        return null;
+    }
+
+    const user = await response.json();
+    const roleNote = user.role === 'DRIVER'
+        ? 'Driver mode active'
+        : 'Passenger mode (you can still browse this dashboard)';
+    driverSummary.innerHTML = `<p style="color:white; margin-top:0.75rem;">${user.name} | ${user.vehicleModel || 'Vehicle pending'} | ${user.licensePlate || 'No license plate'} | ${roleNote}</p>`;
+
+    if (user.role === 'PASSENGER') {
+        driverUpgradeCard.style.display = 'block';
+    } else {
+        driverUpgradeCard.style.display = 'none';
+    }
+
+    return user;
+}
+
+showDriverUpgradeFormBtn.addEventListener('click', function() {
+    driverUpgradeForm.style.display = driverUpgradeForm.style.display === 'none' ? 'grid' : 'none';
+});
+
+driverUpgradeForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {};
+    new FormData(driverUpgradeForm).forEach((value, key) => data[key] = typeof value === 'string' ? value.trim() : value);
+
+    const resp = await fetch('/auth/register-driver', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(data)
+    });
+
+    if (!resp.ok) {
+        const errorText = await resp.text();
+        driverUpgradeMessage.innerHTML = `<p style="color:red;">${errorText || 'Unable to register as driver'}</p>`;
+        return;
+    }
+
+    driverUpgradeMessage.innerHTML = '<p style="color:green;">Driver registration successful. Dashboard refreshed.</p>';
+    driverUpgradeForm.reset();
+    await loadDriverProfile();
+});
+
+postRideForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {};
+    new FormData(postRideForm).forEach((value, key) => data[key] = value);
+
+    const resp = await fetch('/rides/post', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(data)
+    });
+
+    if (resp.ok) {
+        message.innerHTML = '<p style="color:green;">Ride posted successfully.</p>';
+        postRideForm.reset();
+        loadRidesAndBookings();
+    } else {
+        const errorText = await resp.text();
+        message.innerHTML = `<p style="color:red;">${errorText || 'Error posting ride'}</p>`;
+    }
+});
 
 async function loadRidesAndBookings() {
     const resp = await fetch('/rides/my-rides', {
@@ -25,7 +185,7 @@ async function loadRidesAndBookings() {
     const rides = await resp.json();
     
     if (rides.length === 0) {
-        document.getElementById('rides').innerHTML = '<p>No rides posted yet</p>';
+        ridesContainer.innerHTML = '<p>No rides posted yet. Use the form above to share your first ride.</p>';
         return;
     }
     
@@ -39,8 +199,12 @@ async function loadRidesAndBookings() {
         html += `<div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:4px;">
             <h3>${ride.source} → ${ride.destination}</h3>
             <p>Date: ${ride.date} | Time: ${ride.time} | Available Seats: ${ride.availableSeats}</p>
+            <p>Status: <strong>${ride.status || 'SCHEDULED'}</strong></p>
             <p>Vehicle: ${ride.vehicleModel} (${ride.licensePlate})</p>
             <p>Price/Seat: $${ride.pricePerSeat}</p>
+            <button type="button" onclick="cancelRide(${ride.id})">Cancel Ride</button>
+            <button type="button" onclick="rescheduleRide(${ride.id})">Reschedule +1 Day</button>
+            <button type="button" onclick="completeRide(${ride.id})">Mark Completed</button>
             <h4>Passenger Bookings:</h4>`;
             
         if (bookings.length === 0) {
@@ -54,10 +218,115 @@ async function loadRidesAndBookings() {
         }
         html += '</div>';
     }
-    document.getElementById('rides').innerHTML = html;
+    ridesContainer.innerHTML = html;
 }
 
-loadRidesAndBookings();
+async function loadDriverTransactions() {
+    const resp = await fetch('/payments/driver-transactions', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        driverTransactions.innerHTML = '<p>Unable to load transactions.</p>';
+        return;
+    }
+
+    const list = await resp.json();
+    if (list.length === 0) {
+        driverTransactions.innerHTML = '<p>No payments credited yet.</p>';
+        return;
+    }
+
+    let html = '';
+    list.forEach(p => {
+        html += `<div style="border:1px solid #9fd0f8; padding:0.65rem; margin:0.45rem 0; border-radius:8px; background:#f8fcff;">
+            <p><strong>${p.gateway}</strong> | ${p.status} | Payout: ${p.payoutStatus || 'HELD'} | Amount: $${p.amount}</p>
+            <p>Ride: ${p.rideId} | Booking: ${p.bookingId} | Ref: ${p.providerPaymentId}</p>
+        </div>`;
+    });
+    driverTransactions.innerHTML = html;
+}
+
+async function cancelRide(rideId) {
+    const resp = await fetch(`/rides/${rideId}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to cancel ride'}</p>`;
+        return;
+    }
+
+    message.innerHTML = '<p style="color:green;">Ride cancelled and passengers notified.</p>';
+    loadRidesAndBookings();
+}
+
+async function rescheduleRide(rideId) {
+    const nextDay = new Date();
+    nextDay.setDate(nextDay.getDate() + 1);
+    const dateStr = nextDay.toISOString().slice(0, 10);
+    const resp = await fetch(`/rides/${rideId}/reschedule`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ date: dateStr, time: '09:00' })
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to reschedule ride'}</p>`;
+        return;
+    }
+
+    message.innerHTML = '<p style="color:green;">Ride rescheduled and passengers notified.</p>';
+    loadRidesAndBookings();
+}
+
+async function completeRide(rideId) {
+    const resp = await fetch(`/rides/${rideId}/complete`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to complete ride'}</p>`;
+        return;
+    }
+
+    message.innerHTML = '<p style="color:green;">Ride completed. Driver payout transferred.</p>';
+    loadRidesAndBookings();
+    loadDriverTransactions();
+}
+
+window.cancelRide = cancelRide;
+window.rescheduleRide = rescheduleRide;
+window.completeRide = completeRide;
+
+function connectRealtime() {
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+    stompClient.connect({}, function() {
+        stompClient.subscribe('/topic/booking-updates', function(msg) {
+            const payload = JSON.parse(msg.body);
+            liveFeed.innerHTML = `<div style="margin:0.6rem 0; padding:0.55rem 0.7rem; background:#e9f5ff; border:1px solid #b8defa; border-radius:8px;">${payload.message}</div>` + liveFeed.innerHTML;
+            loadRidesAndBookings();
+            loadDriverTransactions();
+        });
+    });
+}
+
+loadDriverProfile().then(user => {
+    if (user) {
+        loadRidesAndBookings();
+        loadDriverTransactions();
+        connectRealtime();
+    }
+});
     </script>
 </div>
 </body>

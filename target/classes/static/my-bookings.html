@@ -4,11 +4,90 @@
     <meta charset="UTF-8">
     <title>My Bookings</title>
     <link rel="stylesheet" href="/styles.css">
+    <style>
+        #bookings {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .ticket-card {
+            background: linear-gradient(160deg, #ffffff 0%, #f5faff 100%);
+            border: 1px solid #cfe8ff;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.08);
+        }
+
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.7rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px dashed #9ec8f3;
+        }
+
+        .ticket-id {
+            font-weight: 700;
+            color: #004b8f;
+        }
+
+        .ticket-status {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #0b6e3e;
+            background: #ddf9ea;
+            border: 1px solid #9ae3bf;
+            border-radius: 999px;
+            padding: 0.2rem 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .ticket-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(120px, 1fr));
+            gap: 0.55rem 0.85rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .ticket-field {
+            background: #ffffff;
+            border: 1px solid #e3f0fb;
+            border-radius: 8px;
+            padding: 0.45rem 0.55rem;
+        }
+
+        .ticket-label {
+            display: block;
+            font-size: 0.68rem;
+            color: #5f7994;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 0.1rem;
+        }
+
+        .ticket-value {
+            font-size: 0.92rem;
+            color: #123a63;
+            font-weight: 600;
+        }
+
+        .ticket-footer {
+            font-size: 0.78rem;
+            color: #4d6a86;
+            padding-top: 0.55rem;
+            border-top: 1px dashed #9ec8f3;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
     <h2>My Bookings</h2>
     <div id="bookings"></div>
+    <h2 style="margin-top:1.5rem;">Payment Transactions</h2>
+    <div id="payments"></div>
     <script>
 const token = localStorage.getItem('token');
 if (!token) {
@@ -27,19 +106,88 @@ async function loadBookings() {
         return;
     }
     
+    const issuedAt = new Date().toLocaleString();
     let html = '';
     bookings.forEach(b => {
-        html += `<div style="border:2px solid #28a745; padding:1rem; margin:0.5rem 0; border-radius:4px;">
-            <p><strong>Booking ID: ${b.id}</strong></p>
-            <p>Ride ID: ${b.rideId}</p>
-            <p>Seats Booked: ${b.seatsBooked}</p>
-            <p>Total Price: $${b.totalPrice}</p>
-        </div>`;
+        const ticketNo = `SR-${String(b.id).padStart(5, '0')}-${String(b.rideId).padStart(4, '0')}`;
+        html += `<article class="ticket-card">
+            <div class="ticket-header">
+                <span class="ticket-id">Ticket ${ticketNo}</span>
+                <span class="ticket-status">Confirmed</span>
+            </div>
+            <div class="ticket-grid">
+                <div class="ticket-field">
+                    <span class="ticket-label">Booking ID</span>
+                    <span class="ticket-value">${b.id}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Ride ID</span>
+                    <span class="ticket-value">${b.rideId}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Seats</span>
+                    <span class="ticket-value">${b.seatsBooked}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Total Fare</span>
+                    <span class="ticket-value">$${b.totalPrice}</span>
+                </div>
+            </div>
+            <div class="ticket-footer">Issued: ${issuedAt}</div>
+        </article>`;
     });
     document.getElementById('bookings').innerHTML = html;
 }
 
+async function loadPayments() {
+    const resp = await fetch('/payments/my-transactions', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        document.getElementById('payments').innerHTML = '<p>Unable to load transactions.</p>';
+        return;
+    }
+
+    const payments = await resp.json();
+    if (payments.length === 0) {
+        document.getElementById('payments').innerHTML = '<p>No payment records yet.</p>';
+        return;
+    }
+
+    let html = '';
+    payments.forEach(p => {
+        html += `<div class="ticket-card">
+            <div class="ticket-header">
+                <span class="ticket-id">${p.gateway} - ${p.providerPaymentId}</span>
+                <span class="ticket-status">${p.status}</span>
+            </div>
+            <div class="ticket-grid">
+                <div class="ticket-field">
+                    <span class="ticket-label">Amount</span>
+                    <span class="ticket-value">$${p.amount}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Ride ID</span>
+                    <span class="ticket-value">${p.rideId}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Booking ID</span>
+                    <span class="ticket-value">${p.bookingId}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Payout Status</span>
+                    <span class="ticket-value">${p.payoutStatus || 'HELD'}</span>
+                </div>
+            </div>
+            <div class="ticket-footer">Receipt: ${p.receiptUrl || 'N/A'}</div>
+        </div>`;
+    });
+    document.getElementById('payments').innerHTML = html;
+}
+
 loadBookings();
+loadPayments();
     </script>
 </div>
 </body>

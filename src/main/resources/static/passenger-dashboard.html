@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passenger Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.12/dist/lottie-player.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        .book-ride-layout {
+            display: grid;
+            grid-template-columns: 1fr 220px;
+            gap: 1rem;
+            align-items: start;
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        #searchForm {
+            text-align: left;
+            max-width: 520px;
+            margin: 0;
+        }
+
+        #searchForm .field-label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-top: 0.75rem;
+            margin-bottom: 0.15rem;
+        }
+
+        #searchForm .field-label input {
+            display: block;
+            margin-top: 0.25rem;
+            margin-left: 0;
+            width: 80%;
+            min-width: 220px;
+        }
+
+        .lottie-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 0;
+            padding-top: 0.5rem;
+        }
+
+        #bookings {
+            display: grid;
+            gap: 0.9rem;
+            margin-top: 1rem;
+            text-align: left;
+        }
+
+        .ticket-card {
+            background: linear-gradient(160deg, #ffffff 0%, #f5faff 100%);
+            border: 1px solid #cfe8ff;
+            border-radius: 12px;
+            padding: 0.95rem;
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.08);
+        }
+
+        .ticket-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.65rem;
+            padding-bottom: 0.55rem;
+            border-bottom: 1px dashed #9ec8f3;
+        }
+
+        .ticket-id {
+            font-weight: 700;
+            color: #004b8f;
+            font-size: 0.9rem;
+        }
+
+        .ticket-status {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #0b6e3e;
+            background: #ddf9ea;
+            border: 1px solid #9ae3bf;
+            border-radius: 999px;
+            padding: 0.2rem 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .ticket-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(120px, 1fr));
+            gap: 0.5rem 0.8rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .ticket-field {
+            background: #ffffff;
+            border: 1px solid #e3f0fb;
+            border-radius: 8px;
+            padding: 0.4rem 0.5rem;
+        }
+
+        .ticket-label {
+            display: block;
+            font-size: 0.66rem;
+            color: #5f7994;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 0.08rem;
+        }
+
+        .ticket-value {
+            font-size: 0.9rem;
+            color: #123a63;
+            font-weight: 600;
+        }
+
+        .ticket-footer {
+            font-size: 0.76rem;
+            color: #4d6a86;
+            padding-top: 0.5rem;
+            border-top: 1px dashed #9ec8f3;
+        }
+
+        .notif {
+            margin: 0.6rem 0;
+            padding: 0.55rem 0.7rem;
+            background: #e9f5ff;
+            border: 1px solid #b8defa;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            color: #0f4e85;
+            text-align: left;
+        }
+
+        #stripeCardPanel {
+            margin: 0.8rem 0;
+            text-align: left;
+            border: 1px solid #b8defa;
+            border-radius: 10px;
+            background: #f8fcff;
+            padding: 0.75rem;
+        }
+
+        #card-element {
+            background: #fff;
+            border: 1px solid #cfdff0;
+            border-radius: 8px;
+            padding: 0.65rem;
+            margin-top: 0.4rem;
+        }
+
+        #card-errors {
+            color: #c0392b;
+            font-size: 0.82rem;
+            margin-top: 0.35rem;
+        }
+
+        @media (max-width: 768px) {
+            .book-ride-layout {
+                grid-template-columns: 1fr;
+                justify-items: center;
+            }
+
+            #searchForm {
+                width: 100%;
+                max-width: 520px;
+            }
+
+            #searchForm .field-label input {
+                width: 100%;
+                min-width: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Passenger Dashboard</h1>
+        <div id="passengerSummary"></div>
+    </header>
+
+    <nav>
+        <a href="/">Home</a>
+        <a href="/driver-dashboard.html">Driver Dashboard</a>
+        <a href="/my-bookings.html">Bookings</a>
+        <a href="#" id="logoutBtn">Logout</a>
+    </nav>
+
+    <div style="max-width:760px; margin:0 auto;">
+        <section style="text-align:center;">
+            <h2>Book a Ride</h2>
+            <div class="book-ride-layout">
+                <form id="searchForm">
+                    <label class="field-label">From:
+                        <input type="text" name="source" required>
+                    </label>
+                    <label class="field-label">To:
+                        <input type="text" name="destination" required>
+                    </label>
+                    <label class="field-label">Date:
+                        <input type="date" name="date" required>
+                    </label>
+                    <button type="submit">Search Rides</button>
+                </form>
+                <div class="lottie-wrap">
+                    <lottie-player
+                        src="https://assets9.lottiefiles.com/packages/lf20_touohxv0.json"
+                        background="transparent"
+                        speed="1"
+                        style="width: 190px; height: 190px;"
+                        loop
+                        autoplay>
+                    </lottie-player>
+                </div>
+            </div>
+            <div id="message"></div>
+            <div id="stripeCardPanel" style="display:none;">
+                <strong>Secure Payment (Stripe)</strong>
+                <div id="card-element"></div>
+                <div id="card-errors"></div>
+            </div>
+            <div id="liveFeed"></div>
+            <div id="results"></div>
+            <div id="bookings"></div>
+            <div id="paymentHistory"></div>
+        </section>
+    </div>
+
+    <script>
+const token = localStorage.getItem('token');
+if (!token) {
+    alert('Please login first');
+    window.location.href = '/login.html';
+}
+
+const passengerSummary = document.getElementById('passengerSummary');
+const searchForm = document.getElementById('searchForm');
+const resultsContainer = document.getElementById('results');
+const bookingsContainer = document.getElementById('bookings');
+const message = document.getElementById('message');
+const liveFeed = document.getElementById('liveFeed');
+const logoutBtn = document.getElementById('logoutBtn');
+const paymentHistory = document.getElementById('paymentHistory');
+const stripeCardPanel = document.getElementById('stripeCardPanel');
+const cardErrors = document.getElementById('card-errors');
+
+let stripeClient = null;
+let stripeCard = null;
+
+logoutBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    window.location.href = '/login.html';
+});
+
+async function loadPassengerProfile() {
+    const response = await fetch('/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!response.ok) {
+        localStorage.removeItem('token');
+        window.location.href = '/login.html';
+        return null;
+    }
+
+    const user = await response.json();
+    const roleMessage = user.role === 'DRIVER'
+        ? 'You are logged in as a driver, but you can still search and book rides from this dashboard.'
+        : 'Search rides below and book from this dashboard.';
+
+    passengerSummary.innerHTML = `<p style="color:white; margin-top:0.75rem;">Welcome, ${user.name}. ${roleMessage}</p>`;
+    return user;
+}
+
+async function loadBookings() {
+    const resp = await fetch('/bookings/my-bookings', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const bookings = await resp.json();
+
+    if (bookings.length === 0) {
+        bookingsContainer.innerHTML = '<p>No bookings yet. Search and reserve a ride above.</p>';
+        return;
+    }
+
+    const issuedAt = new Date().toLocaleString();
+    let html = '<h3>My Bookings</h3>';
+    bookings.forEach(booking => {
+        const ticketNo = `SR-${String(booking.id).padStart(5, '0')}-${String(booking.rideId).padStart(4, '0')}`;
+        html += `<article class="ticket-card">
+            <div class="ticket-header">
+                <span class="ticket-id">Ticket ${ticketNo}</span>
+                <span class="ticket-status">Confirmed</span>
+            </div>
+            <div class="ticket-grid">
+                <div class="ticket-field">
+                    <span class="ticket-label">Booking ID</span>
+                    <span class="ticket-value">${booking.id}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Ride ID</span>
+                    <span class="ticket-value">${booking.rideId}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Seats</span>
+                    <span class="ticket-value">${booking.seatsBooked}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Total Fare</span>
+                    <span class="ticket-value">$${booking.totalPrice}</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Distance</span>
+                    <span class="ticket-value">${booking.passengerDistanceKm || '-'} km</span>
+                </div>
+                <div class="ticket-field">
+                    <span class="ticket-label">Payment</span>
+                    <span class="ticket-value">${booking.paymentStatus || 'PENDING'}</span>
+                </div>
+            </div>
+            <div class="ticket-footer">Issued: ${issuedAt}</div>
+        </article>`;
+    });
+
+    bookingsContainer.innerHTML = html;
+}
+
+async function loadPaymentHistory() {
+    const resp = await fetch('/payments/my-transactions', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        paymentHistory.innerHTML = '<p>Unable to load transaction history.</p>';
+        return;
+    }
+
+    const payments = await resp.json();
+    if (payments.length === 0) {
+        paymentHistory.innerHTML = '<h3>Transaction History</h3><p>No transactions yet.</p>';
+        return;
+    }
+
+    let html = '<h3>Transaction History</h3>';
+    payments.forEach(p => {
+        html += `<div style="border:1px solid #9fd0f8; padding:0.65rem; margin:0.45rem 0; border-radius:8px; text-align:left; background:#f8fcff;">
+            <p><strong>${p.gateway}</strong> | ${p.status} | $${p.amount}</p>
+            <p>Order: ${p.providerOrderId} | Payment: ${p.providerPaymentId}</p>
+            <p>Ride: ${p.rideId} | Booking: ${p.bookingId}</p>
+        </div>`;
+    });
+    paymentHistory.innerHTML = html;
+}
+
+async function initStripe() {
+    try {
+        const resp = await fetch('/payments/config', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!resp.ok) return; // silently skip — Stripe optional
+
+        const config = await resp.json();
+        if (!config.stripeEnabled || !config.stripePublishableKey) return; // no Stripe keys — panel stays hidden
+
+        stripeClient = Stripe(config.stripePublishableKey);
+        const elements = stripeClient.elements();
+        stripeCard = elements.create('card', { hidePostalCode: true });
+        stripeCardPanel.style.display = 'block';
+        stripeCard.mount('#card-element');
+        stripeCard.on('change', function(event) {
+            cardErrors.textContent = event.error ? event.error.message : '';
+        });
+    } catch (_) {
+        // Stripe unavailable — continue without payment UI
+    }
+}
+
+searchForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const source = document.querySelector('input[name="source"]').value;
+    const destination = document.querySelector('input[name="destination"]').value;
+    const date = document.querySelector('input[name="date"]').value;
+
+    const resp = await fetch(`/rides/match?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(date)}`, {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    });
+
+    const matches = await resp.json();
+    if (matches.length === 0) {
+        resultsContainer.innerHTML = '<p>No rides found for that search.</p>';
+        return;
+    }
+
+    let html = '<h3>Available Rides</h3>';
+    matches.forEach(match => {
+        const ride = match.ride;
+        html += `<div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:4px;">
+            <p><strong>${ride.source} → ${ride.destination}</strong></p>
+            <p>Date: ${ride.date} | Time: ${ride.time}</p>
+            <p>Driver: ${ride.driverName} | Vehicle: ${ride.vehicleModel}</p>
+            <p>Match Type: <strong>${match.matchType}</strong> | Score: ${match.matchScore}</p>
+            <p>Available Seats: ${ride.availableSeats} | Price/Seat: $${ride.pricePerSeat}</p>
+            <label>Seats to book: <input type="number" id="seats_${ride.id}" min="1" max="${ride.availableSeats}" value="1"></label>
+            <button type="button" onclick="previewFare(${ride.id})">Preview Fare</button>
+            <button type="button" onclick="bookRide(${ride.id})">Pay & Book (Stripe)</button>
+        </div>`;
+    });
+
+    resultsContainer.innerHTML = html;
+});
+
+async function previewFare(rideId) {
+    const seats = parseInt(document.getElementById('seats_' + rideId).value, 10);
+    const source = document.querySelector('input[name="source"]').value;
+    const destination = document.querySelector('input[name="destination"]').value;
+    const resp = await fetch(`/bookings/fare-preview?rideId=${rideId}&seats=${seats}&source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}`, {
+        headers: {
+            'Authorization': 'Bearer ' + token
+        }
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to preview fare'}</p>`;
+        return;
+    }
+
+    const fare = await resp.json();
+    message.innerHTML = `<p style="color:#004b8f;">Fare Estimate: Base $${fare.baseFare} + ($${fare.ratePerKm}/km × ${fare.distanceKm} km) = $${fare.fareBeforeSplit}. Shared by ${fare.sharedByPassengers} passenger(s). Your total: <strong>$${fare.totalFare}</strong>.</p>`;
+}
+
+async function bookRide(rideId) {
+    const seats = parseInt(document.getElementById('seats_' + rideId).value, 10);
+    const source = document.querySelector('input[name="source"]').value;
+    const destination = document.querySelector('input[name="destination"]').value;
+
+    let gateway = 'STRIPE';
+    let paymentToken = 'sandbox_token';
+
+    // If real Stripe is configured, collect a real card token
+    if (stripeClient && stripeCard) {
+        const pmResult = await stripeClient.createPaymentMethod({
+            type: 'card',
+            card: stripeCard
+        });
+        if (pmResult.error) {
+            message.innerHTML = `<p style="color:red;">${pmResult.error.message}</p>`;
+            return;
+        }
+        paymentToken = pmResult.paymentMethod.id;
+    }
+
+    const resp = await fetch('/bookings/book-with-payment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ rideId, seats, source, destination, gateway, paymentToken })
+    });
+
+    if (resp.ok) {
+        const data = await resp.json();
+        const txRef = data.payment && data.payment.providerPaymentId ? ` | Ref: ${data.payment.providerPaymentId}` : '';
+        message.innerHTML = `<p style="color:green;">Booking confirmed! Total: $${data.booking.totalPrice}${txRef}</p>`;
+        searchForm.reset();
+        resultsContainer.innerHTML = '';
+        loadBookings();
+        loadPaymentHistory();
+        return;
+    }
+
+    const errorText = await resp.text();
+    message.innerHTML = `<p style="color:red;">${errorText || 'Booking failed'}</p>`;
+}
+
+window.bookRide = bookRide;
+window.previewFare = previewFare;
+
+function connectRealtime() {
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+    stompClient.connect({}, function() {
+        stompClient.subscribe('/topic/ride-updates', function(msg) {
+            const payload = JSON.parse(msg.body);
+            liveFeed.innerHTML = `<div class="notif">Ride Update: ${payload.message}</div>` + liveFeed.innerHTML;
+            loadBookings();
+        });
+
+        stompClient.subscribe('/topic/booking-updates', function(msg) {
+            const payload = JSON.parse(msg.body);
+            liveFeed.innerHTML = `<div class="notif">Booking Update: ${payload.message}</div>` + liveFeed.innerHTML;
+        });
+    });
+}
+
+loadPassengerProfile().then(user => {
+    if (user) {
+        initStripe();
+        loadBookings();
+        loadPaymentHistory();
+        connectRealtime();
+    }
+});
+    </script>
+</div>
+</body>
+</html>

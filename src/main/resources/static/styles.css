@@ -42,22 +42,6 @@ body::before {
     z-index: 1;
 }
 
-/* Animated vehicle element 1 - moving left to right */
-body::after {
-    content: '';
-    position: fixed;
-    top: 15%;
-    left: -100px;
-    width: 80px;
-    height: 40px;
-    background: radial-gradient(ellipse 40px 20px at 20px 10px, rgba(255, 200, 0, 0.3), rgba(255, 200, 0, 0.1));
-    border-radius: 50%;
-    box-shadow: 0 0 30px rgba(255, 200, 0, 0.2), inset 0 0 20px rgba(255, 200, 0, 0.1);
-    animation: vehicleScroll 20s linear infinite;
-    pointer-events: none;
-    z-index: 2;
-    filter: blur(1px);
-}
 
 .container {
     max-width: 600px;
@@ -84,41 +68,6 @@ body::after {
     }
 }
 
-/* Vehicle animation 1 - left to right */
-@keyframes vehicleScroll {
-    0% {
-        left: -100px;
-        opacity: 0;
-    }
-    5% {
-        opacity: 0.6;
-    }
-    95% {
-        opacity: 0.6;
-    }
-    100% {
-        left: calc(100vw + 100px);
-        opacity: 0;
-    }
-}
-
-/* Vehicle animation 2 - right to left */
-@keyframes vehicleScrollReverse {
-    0% {
-        right: -100px;
-        opacity: 0;
-    }
-    5% {
-        opacity: 0.5;
-    }
-    95% {
-        opacity: 0.5;
-    }
-    100% {
-        right: calc(100vw + 100px);
-        opacity: 0;
-    }
-}
 
 /* Gradient animation */
 @keyframes gradientShift {
@@ -759,111 +708,6 @@ form {
         width: 100%;
     }
     
-    h1::before, h2::before, h3::before {
-        display: none;
-    }
-    
-    body::after {
-        display: none;
-    }
 }
 
-/* Multiple vehicle animations for background */
-h1::before {
-    content: '';
-    position: fixed;
-    top: 30%;
-    left: -50px;
-    width: 60px;
-    height: 30px;
-    background: radial-gradient(ellipse 30px 15px, rgba(255, 200, 0, 0.25), transparent);
-    border-radius: 50%;
-    box-shadow: 0 0 20px rgba(255, 200, 0, 0.15);
-    animation: vehicleScroll2 25s linear infinite;
-    pointer-events: none;
-    z-index: 2;
-    opacity: 0.7;
-}
 
-@keyframes vehicleScroll2 {
-    0% {
-        left: -50px;
-        opacity: 0;
-    }
-    5% {
-        opacity: 0.7;
-    }
-    95% {
-        opacity: 0.7;
-    }
-    100% {
-        left: calc(100vw + 50px);
-        opacity: 0;
-    }
-}
-
-h2::before {
-    content: '';
-    position: fixed;
-    bottom: 25%;
-    right: -50px;
-    width: 70px;
-    height: 35px;
-    background: radial-gradient(ellipse 35px 17px, rgba(51, 150, 243, 0.3), transparent);
-    border-radius: 50%;
-    box-shadow: 0 0 25px rgba(51, 150, 243, 0.2);
-    animation: vehicleScrollReverse2 22s linear infinite;
-    pointer-events: none;
-    z-index: 2;
-    opacity: 0.6;
-}
-
-@keyframes vehicleScrollReverse2 {
-    0% {
-        right: -50px;
-        opacity: 0;
-    }
-    5% {
-        opacity: 0.6;
-    }
-    95% {
-        opacity: 0.6;
-    }
-    100% {
-        right: calc(100vw + 50px);
-        opacity: 0;
-    }
-}
-
-h3::before {
-    content: '';
-    position: fixed;
-    top: 60%;
-    left: -40px;
-    width: 55px;
-    height: 28px;
-    background: radial-gradient(ellipse 27px 14px, rgba(255, 107, 107, 0.25), transparent);
-    border-radius: 50%;
-    box-shadow: 0 0 18px rgba(255, 107, 107, 0.15);
-    animation: vehicleScroll3 30s linear infinite;
-    pointer-events: none;
-    z-index: 2;
-    opacity: 0.5;
-}
-
-@keyframes vehicleScroll3 {
-    0% {
-        left: -40px;
-        opacity: 0;
-    }
-    5% {
-        opacity: 0.5;
-    }
-    95% {
-        opacity: 0.5;
-    }
-    100% {
-        left: calc(100vw + 40px);
-        opacity: 0;
-    }
-}

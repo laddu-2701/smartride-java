@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Entity
 public class Ride {
@@ -17,6 +18,12 @@ public class Ride {
     private LocalTime time;
     private int availableSeats;
     private double pricePerSeat;
+    private double routeDistanceKm;
+
+    @Column(nullable = false)
+    private String status = "SCHEDULED";
+
+    private LocalDateTime updatedAt;
 
     // In a simple model we store driver info directly
     private Long driverId;
@@ -38,6 +45,12 @@ public class Ride {
     public void setAvailableSeats(int availableSeats) { this.availableSeats = availableSeats; }
     public double getPricePerSeat() { return pricePerSeat; }
     public void setPricePerSeat(double pricePerSeat) { this.pricePerSeat = pricePerSeat; }
+    public double getRouteDistanceKm() { return routeDistanceKm; }
+    public void setRouteDistanceKm(double routeDistanceKm) { this.routeDistanceKm = routeDistanceKm; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public Long getDriverId() { return driverId; }
     public void setDriverId(Long driverId) { this.driverId = driverId; }
     public String getDriverName() { return driverName; }
@@ -46,4 +59,13 @@ public class Ride {
     public void setVehicleModel(String vehicleModel) { this.vehicleModel = vehicleModel; }
     public String getLicensePlate() { return licensePlate; }
     public void setLicensePlate(String licensePlate) { this.licensePlate = licensePlate; }
+
+    @PrePersist
+    @PreUpdate
+    public void touch() {
+        this.updatedAt = LocalDateTime.now();
+        if (this.status == null || this.status.isBlank()) {
+            this.status = "SCHEDULED";
+        }
+    }
 }

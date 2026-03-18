@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.carpooling.CarpoolingApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.09 s - in com.carpooling.CarpoolingApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 37.562 s - in com.carpooling.CarpoolingApplicationTests

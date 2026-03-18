@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SmartRide Dashboard</title>
+
+<style>
+
+body{
+font-family: Arial;
+background: linear-gradient(135deg,#667eea,#764ba2);
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+margin:0;
+}
+
+.container{
+background:white;
+padding:40px;
+border-radius:15px;
+width:400px;
+text-align:center;
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
+}
+
+h1{
+margin-bottom:30px;
+}
+
+.btn{
+display:block;
+margin:15px 0;
+padding:15px;
+text-decoration:none;
+color:white;
+background:#667eea;
+border-radius:8px;
+font-weight:bold;
+transition:0.3s;
+}
+
+.btn:hover{
+background:#4a5bdc;
+}
+
+.logout{
+background:#ff4d4d;
+}
+
+.logout:hover{
+background:#e60000;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🚗 SmartRide Dashboard</h1>
+
+<a href="/post-ride.html" class="btn">Post a Ride</a>
+
+<a href="/search-rides.html" class="btn">Search a Ride</a>
+
+<a href="/my-bookings.html" class="btn">My Bookings</a>
+
+<a href="#" class="btn logout" onclick="logout()">Logout</a>
+
+</div>
+
+<script>
+
+const token = localStorage.getItem("token");
+
+if(!token){
+    window.location.href="/login.html";
+}
+
+function logout(){
+   localStorage.removeItem("token");
+   window.location.href="/login.html";
+}
+
+</script>
+
+</body>
+</html>

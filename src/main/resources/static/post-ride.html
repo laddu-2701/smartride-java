@@ -4,11 +4,54 @@
     <meta charset="UTF-8">
     <title>Post a Ride</title>
     <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.12/dist/lottie-player.js"></script>
+    <style>
+        #postRideForm {
+            max-width: 640px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        #postRideForm label {
+            display: block;
+            font-size: 0.84rem;
+            font-weight: 600;
+            margin-top: 0.75rem;
+            margin-bottom: 0.2rem;
+        }
+
+        #postRideForm input {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            margin-top: 0.25rem;
+        }
+
+        #postRideForm button {
+            margin-top: 1rem;
+        }
+
+        .lottie-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 0.25rem 0 1rem;
+        }
+    </style>
 </head>
 <body>
 <div class="container">
     <h2>Post a New Ride</h2>
-    <p><small>Vehicle details will be auto-filled from your profile</small></p>
+    <div class="lottie-wrap">
+        <lottie-player
+            src="https://assets1.lottiefiles.com/packages/lf20_myejiggj.json"
+            background="transparent"
+            speed="1"
+            style="width: 180px; height: 180px;"
+            loop
+            autoplay>
+        </lottie-player>
+    </div>
     <form id="postRideForm">
         <label>Source: <input type="text" name="source" required></label>
         <label>Destination: <input type="text" name="destination" required></label>

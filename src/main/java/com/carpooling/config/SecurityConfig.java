@@ -30,8 +30,8 @@ public class SecurityConfig {
     public SecurityFilterChain staticResourcesFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/", "/index.html", "/login.html", "/register.html", "/search-rides.html", 
-                            "/post-ride.html", "/my-bookings.html", "/driver-dashboard.html",
-                            "/styles.css", "/favicon.ico")
+                            "/post-ride.html", "/my-bookings.html", "/driver-dashboard.html", "/passenger-dashboard.html",
+                            "/styles.css", "/favicon.ico", "/ws/**")
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
             .csrf(csrf -> csrf.disable());
         return http.build();
@@ -42,9 +42,10 @@ public class SecurityConfig {
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         // API and protected resources
         http
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/auth/**", "/rides/**", "/bookings/**"))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**", "/test").permitAll()
+                .requestMatchers("/auth/**", "/test", "/ws/**", "/payments/webhook").permitAll()
                 .anyRequest().authenticated())
             .headers(headers -> headers.xssProtection().disable());
 
