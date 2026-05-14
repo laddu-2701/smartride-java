@@ -21,6 +21,8 @@ public class User {
     private String vehicleModel;
     private String licensePlate;
     private Integer capacity;
+    private boolean blocked;
+    private boolean driverVerified;
 
     // getters and setters
     public Long getId() { return id; }
@@ -41,4 +43,8 @@ public class User {
     public void setLicensePlate(String licensePlate) { this.licensePlate = licensePlate; }
     public Integer getCapacity() { return capacity; }
     public void setCapacity(Integer capacity) { this.capacity = capacity; }
+    public boolean isBlocked() { return blocked; }
+    public void setBlocked(boolean blocked) { this.blocked = blocked; }
+    public boolean isDriverVerified() { return driverVerified; }
+    public void setDriverVerified(boolean driverVerified) { this.driverVerified = driverVerified; }
 }

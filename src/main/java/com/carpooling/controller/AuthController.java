@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.carpooling.service.CustomUserDetails;
 import com.carpooling.service.EmailNotificationService;
+import com.carpooling.service.ReviewService;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.Map;
@@ -38,6 +39,9 @@ public class AuthController {
     @Autowired
     private EmailNotificationService emailNotificationService;
 
+    @Autowired
+    private ReviewService reviewService;
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, String> requestMap) {
         // basic validation and trimming
@@ -59,6 +63,10 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Invalid role");
         }
 
+        if (role == Role.ADMIN) {
+            return ResponseEntity.badRequest().body("Admin accounts cannot be self-registered");
+        }
+
         // duplicate check
         if (!email.isEmpty() && userRepository.findByEmail(email).isPresent()) {
             return ResponseEntity.badRequest().body("User already registered with that email");
@@ -73,6 +81,8 @@ public class AuthController {
         user.setPhone(phone);
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setRole(role);
+        user.setBlocked(false);
+        user.setDriverVerified(role != Role.DRIVER);
 
         if (role == Role.DRIVER) {
             String vehicleModel = requestMap.get("vehicleModel") != null ? requestMap.get("vehicleModel").trim() : "";
@@ -112,6 +122,12 @@ public class AuthController {
             String password = body.get("password");
             authManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
             String token = jwtUtil.generateToken(username);
+
+            // Send login notification email if we can resolve the user and they have an email
+            userRepository.findByEmail(username)
+                    .or(() -> userRepository.findByPhone(username))
+                    .ifPresent(emailNotificationService::sendLoginNotificationEmail);
+
             return ResponseEntity.ok(Map.of("token", token));
         } catch (AuthenticationException e) {
             return ResponseEntity.status(401).body("Invalid credentials");
@@ -123,7 +139,22 @@ public class AuthController {
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(userDetails.getUser());
+        User user = userDetails.getUser();
+        Map<String, Object> rating = reviewService.getRatingSummary(user.getId());
+        Map<String, Object> profile = new java.util.HashMap<>();
+        profile.put("id", user.getId());
+        profile.put("name", user.getName());
+        profile.put("email", user.getEmail());
+        profile.put("phone", user.getPhone());
+        profile.put("role", user.getRole());
+        profile.put("vehicleModel", user.getVehicleModel());
+        profile.put("licensePlate", user.getLicensePlate());
+        profile.put("capacity", user.getCapacity());
+        profile.put("blocked", user.isBlocked());
+        profile.put("driverVerified", user.isDriverVerified());
+        profile.put("averageRating", rating.get("averageRating"));
+        profile.put("reviewCount", rating.get("reviewCount"));
+        return ResponseEntity.ok(profile);
     }
 
     @PostMapping("/register-driver")
@@ -166,11 +197,14 @@ public class AuthController {
         user.setVehicleModel(vehicleModel);
         user.setLicensePlate(licensePlate);
         user.setCapacity(capacity);
+        user.setDriverVerified(false);
         userRepository.save(user);
+        boolean emailSent = emailNotificationService.sendRegistrationEmail(user);
 
         return ResponseEntity.ok(Map.of(
-                "message", "You are now registered as a driver",
-                "role", user.getRole().name()
+            "message", "You are now registered as a driver",
+            "role", user.getRole().name(),
+            "emailNotificationSent", emailSent
         ));
     }
 

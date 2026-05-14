@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.12/dist/lottie-player.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
@@ -59,18 +60,17 @@
         .hero::after { content: ''; position: absolute; width: 400px; height: 400px; border-radius: 50%; background: rgba(255,255,255,0.04); bottom: -100px; left: -100px; }
         .hero-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; width: 100%; position: relative; z-index: 1; }
         .hero-text h1 {
-            font-size: clamp(2.2rem, 4vw, 3.6rem);
+            font-size: clamp(2.4rem, 4.4vw, 3.9rem);
             font-weight: 900;
-            color: #fff;
-            line-height: 1.15;
-            margin-bottom: 1.2rem;
+            line-height: 1.1;
+            margin-bottom: 1.4rem;
+            letter-spacing: -0.03em;
             animation: slideInLeft 0.7s ease both;
-            /* Slight stroke + glow to mimic headlight illumination on the caption */
-            -webkit-text-stroke: 0.6px rgba(255, 244, 178, 0.35);
-            text-shadow:
-                0 0 2px rgba(255, 255, 255, 0.65),
-                0 0 20px rgba(255, 236, 153, 0.35),
-                0 4px 16px rgba(0, 0, 0, 0.25);
+            background: linear-gradient(120deg, #ffffff 0%, #ffeaa7 40%, #ffd54f 70%, #ffffff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 10px 30px rgba(0,0,0,0.35);
         }
         .hero-text h1 span { color: #ffd700; }
         .hero-text p { font-size: 1.1rem; color: rgba(255,255,255,0.85); line-height: 1.7; margin-bottom: 2rem; animation: slideInLeft 0.9s ease both; }
@@ -136,6 +136,10 @@
                 <div class="uemail" id="ddEmail"></div>
             </div>
             <a href="/dashboard.html">&#127968; Dashboard</a>
+            <a href="/passenger-dashboard.html">🚕 Passenger</a>
+            <a href="/driver-dashboard.html">🚗 Driver</a>
+            <a href="/reviews.html">⭐ Reviews</a>
+            <a href="/admin-dashboard.html" id="adminDashboardLink" style="display:none;">🛡 Admin Dashboard</a>
             <a href="/my-bookings.html">&#127915; My Bookings</a>
             <button class="logout-btn" onclick="logout()">&#128682; Logout</button>
         </div>
@@ -154,43 +158,7 @@
             </div>
         </div>
         <div class="hero-illustration">
-            <svg class="car-svg" viewBox="0 0 480 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="240" cy="285" rx="200" ry="18" fill="rgba(255,255,255,0.08)"/>
-                <rect x="80" y="160" width="320" height="100" rx="18" fill="url(#cg)"/>
-                <path d="M150 160 L170 100 Q180 90 200 90 L290 90 Q310 90 320 100 L340 160Z" fill="rgba(255,255,255,0.22)"/>
-                <!-- Adjusted windows to align with roof/body shape -->
-                <path d="M184 106 L268 106 L260 151 L191 151 Q184 151 184 144 Z" fill="rgba(103,206,255,0.58)"/>
-                <rect x="272" y="108" width="6" height="42" rx="3" fill="rgba(220,235,245,0.55)"/>
-                <path d="M281 108 L322 108 L326 146 Q326 151 320 151 L286 151 Z" fill="rgba(103,206,255,0.46)"/>
-                <line x1="280" y1="158" x2="280" y2="258" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
-                <circle cx="155" cy="265" r="35" fill="#2d2d4e"/>
-                <circle cx="155" cy="265" r="22" fill="#444466"/>
-                <circle cx="155" cy="265" r="10" fill="rgba(255,255,255,0.7)"/>
-                <circle cx="325" cy="265" r="35" fill="#2d2d4e"/>
-                <circle cx="325" cy="265" r="22" fill="#444466"/>
-                <circle cx="325" cy="265" r="10" fill="rgba(255,255,255,0.7)"/>
-                <polygon points="92,200 0,156 0,244" fill="url(#headBeam)"/>
-                <ellipse cx="84" cy="200" rx="15" ry="10" fill="rgba(255,240,100,0.85)"/>
-                <ellipse cx="397" cy="200" rx="9" ry="7" fill="rgba(255,110,110,0.6)"/>
-                <rect x="430" y="95" width="8" height="190" rx="4" fill="rgba(230,230,245,0.8)"/>
-                <rect x="420" y="95" width="30" height="8" rx="4" fill="rgba(230,230,245,0.8)"/>
-                <rect x="417" y="98" width="12" height="8" rx="3" fill="rgba(255,240,120,0.95)"/>
-                <ellipse cx="410" cy="112" rx="22" ry="16" fill="rgba(255,240,120,0.2)"/>
-                <circle cx="60" cy="60" r="3" fill="rgba(255,255,255,0.6)"/>
-                <circle cx="420" cy="40" r="2" fill="rgba(255,255,255,0.5)"/>
-                <circle cx="380" cy="80" r="4" fill="rgba(255,255,255,0.4)"/>
-                <circle cx="90" cy="30" r="2.5" fill="rgba(255,255,255,0.5)"/>
-                <defs>
-                    <linearGradient id="headBeam" x1="92" y1="200" x2="0" y2="200" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stop-color="rgba(255,240,140,0.65)"/>
-                        <stop offset="100%" stop-color="rgba(255,240,140,0)"/>
-                    </linearGradient>
-                    <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="rgba(255,255,255,0.28)"/>
-                        <stop offset="100%" stop-color="rgba(255,255,255,0.08)"/>
-                    </linearGradient>
-                </defs>
-            </svg>
+            <img src="/car-animation.jpg" alt="SmartRide car" style="width: 100%; max-width: 420px; height: auto; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.2)); border-radius: 12px;" />
         </div>
     </div>
 </section>
@@ -214,6 +182,12 @@
                 document.getElementById('avatarBtn').textContent = initials;
                 document.getElementById('ddName').textContent = user.username || user.email;
                 document.getElementById('ddEmail').textContent = user.email || '';
+                if (user.role === 'ADMIN') {
+                    const adminLink = document.getElementById('adminDashboardLink');
+                    if (adminLink) {
+                        adminLink.style.display = 'flex';
+                    }
+                }
                 const bar = document.getElementById('welcomeBar');
                 bar.textContent = 'Welcome back, ' + (user.username || user.email) + '!';
                 bar.style.display = 'block';

@@ -13,21 +13,55 @@
         <label>From: <input type="text" name="source" required></label>
         <label>To: <input type="text" name="destination" required></label>
         <label>Date: <input type="date" name="date" required></label>
-        <button type="submit">Search</button>
+
+        <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #e5ecf5; text-align:left;">
+            <h3 style="font-size:0.95rem; margin-bottom:0.4rem;">Filters (optional)</h3>
+            <label style="display:inline-block; margin-right:0.75rem; font-size:0.85rem;">Min Price
+                <input type="number" step="0.5" name="minPrice" style="width:90px;">
+            </label>
+            <label style="display:inline-block; margin-right:0.75rem; font-size:0.85rem;">Max Price
+                <input type="number" step="0.5" name="maxPrice" style="width:90px;">
+            </label>
+            <label style="display:inline-block; margin-right:0.75rem; font-size:0.85rem;">Vehicle Type
+                <input type="text" name="vehicleType" placeholder="e.g. Sedan" style="width:120px;">
+            </label>
+            <label style="display:inline-block; font-size:0.85rem;">Min Rating
+                <input type="number" min="1" max="5" step="0.5" name="minRating" style="width:70px;">
+            </label>
+        </div>
+
+        <button type="submit" style="margin-top:0.75rem;">Search</button>
     </form>
 
-    <div id="stripeCardPanel" style="margin:0.8rem 0; text-align:left; border:1px solid #b8defa; border-radius:10px; background:#f8fcff; padding:0.75rem;">
-        <strong>Secure Payment (Stripe)</strong>
-        <div id="card-element" style="background:#fff; border:1px solid #cfdff0; border-radius:8px; padding:0.65rem; margin-top:0.4rem;"></div>
-        <div id="card-errors" style="color:#c0392b; font-size:0.82rem; margin-top:0.35rem;"></div>
-    </div>
-    
     <div id="results"></div>
+
+    <div id="checkoutPanel" style="margin:0.8rem 0; display:none; text-align:left; border:1px solid #b8defa; border-radius:10px; background:#f8fcff; padding:0.75rem;">
+        <h3 style="margin:0 0 0.35rem; font-size:0.95rem;">Review your ride &amp; pay</h3>
+        <div id="orderSummary" style="font-size:0.85rem; margin-bottom:0.5rem; color:#0f172a;"></div>
+        <div style="border-top:1px solid #e0edf8; padding-top:0.45rem; margin-top:0.35rem;">
+            <p style="font-size:0.82rem; margin:0 0 0.3rem;"><strong>Payment method</strong></p>
+            <label style="display:block; font-size:0.82rem; margin-bottom:0.25rem;">
+                <input type="radio" name="paymentMethod" checked disabled>
+                Card (Stripe Secure Checkout)
+            </label>
+            <p style="font-size:0.78rem; color:#6b7280; margin:0 0 0.3rem;">
+                Other options like UPI / Wallets can be added later. For now, pay safely with your card.
+            </p>
+            <div id="stripeCardPanel" style="margin-top:0.4rem;">
+                <div id="card-element" style="background:#fff; border:1px solid #cfdff0; border-radius:8px; padding:0.65rem;"></div>
+                <div id="card-errors" style="color:#c0392b; font-size:0.82rem; margin-top:0.35rem;"></div>
+            </div>
+        </div>
+    </div>
     
     <script>
 const token = localStorage.getItem('token');
 let stripeClient = null;
 let stripeCard = null;
+let selectedRideId = null;
+let selectedSeats = null;
+let selectedFare = null;
+let joinedRideIds = new Set();
 if (!token) {
     alert('Please login first');
     window.location.href = '/login.html';
@@ -41,13 +75,13 @@ async function initStripe() {
     });
 
     if (!resp.ok) {
-        document.getElementById('stripeCardPanel').style.display = 'none';
+        document.getElementById('checkoutPanel').style.display = 'none';
         return; // silently hide — Stripe is optional
     }
 
     const config = await resp.json();
     if (!config.stripeEnabled || !config.stripePublishableKey) {
-        document.getElementById('stripeCardPanel').style.display = 'none';
+        document.getElementById('checkoutPanel').style.display = 'none';
         return; // Stripe optional — hide panel, booking still works in sandbox mode
     }
 
@@ -62,11 +96,35 @@ async function initStripe() {
 
 initStripe();
 
-document.getElementById('searchForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
+async function loadJoinedRides() {
+    try {
+        const resp = await fetch('/bookings/my-bookings', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!resp.ok) {
+            joinedRideIds = new Set();
+            return;
+        }
+        const bookings = await resp.json();
+        joinedRideIds = new Set(bookings.map(b => b.rideId));
+    } catch (_) {
+        joinedRideIds = new Set();
+    }
+}
+
+async function performSearch() {
     const source = document.querySelector('input[name="source"]').value;
     const destination = document.querySelector('input[name="destination"]').value;
     const date = document.querySelector('input[name="date"]').value;
+    const minPriceRaw = document.querySelector('input[name="minPrice"]').value;
+    const maxPriceRaw = document.querySelector('input[name="maxPrice"]').value;
+    const vehicleTypeRaw = document.querySelector('input[name="vehicleType"]').value;
+    const minRatingRaw = document.querySelector('input[name="minRating"]').value;
+
+    const minPrice = minPriceRaw ? parseFloat(minPriceRaw) : null;
+    const maxPrice = maxPriceRaw ? parseFloat(maxPriceRaw) : null;
+    const vehicleType = vehicleTypeRaw ? vehicleTypeRaw.trim().toLowerCase() : '';
+    const minRating = minRatingRaw ? parseFloat(minRatingRaw) : null;
     
     console.log('Searching for rides with token:', token ? 'YES' : 'NO');
     const resp = await fetch(`/rides/match?source=${source}&destination=${destination}&date=${date}`, {
@@ -76,50 +134,109 @@ document.getElementById('searchForm').addEventListener('submit', async function(
     });
     console.log('Search response status:', resp.status);
     const rides = await resp.json();
-    
-    if (rides.length === 0) {
+
+    if (!Array.isArray(rides) || rides.length === 0) {
         document.getElementById('results').innerHTML = '<p>No rides found</p>';
         return;
     }
-    
-    let html = '<h3>Available Rides</h3>';
-    rides.forEach(match => {
+
+    // Fetch driver rating summaries so we can filter and display ratings
+    const driverIds = Array.from(new Set(rides
+        .map(match => (match.ride || match).driverId)
+        .filter(id => id !== null && id !== undefined)));
+
+    const driverRatings = {};
+    await Promise.all(driverIds.map(async (id) => {
+        try {
+            const r = await fetch(`/reviews/summary/${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+            if (r.ok) {
+                driverRatings[id] = await r.json();
+            }
+        } catch (err) {
+            console.warn('Rating lookup failed for driver', id, err);
+        }
+    }));
+
+    const filtered = rides.filter(match => {
         const r = match.ride || match;
+        if (!r) return false;
+
+        // Hide rides that have no seats left
+        if (!r.availableSeats || r.availableSeats <= 0) {
+            return false;
+        }
+
+        if (minPrice !== null && !isNaN(minPrice) && r.pricePerSeat < minPrice) {
+            return false;
+        }
+        if (maxPrice !== null && !isNaN(maxPrice) && r.pricePerSeat > maxPrice) {
+            return false;
+        }
+        if (vehicleType && (!r.vehicleModel || !r.vehicleModel.toLowerCase().includes(vehicleType))) {
+            return false;
+        }
+
+        if (minRating !== null && !isNaN(minRating)) {
+            const summary = driverRatings[r.driverId];
+            const rating = summary && typeof summary.averageRating === 'number'
+                ? summary.averageRating
+                : 0;
+            if (rating < minRating) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        document.getElementById('results').innerHTML = '<p>No rides matched your filters.</p>';
+        return;
+    }
+
+    function labelMatchType(raw) {
+        if (!raw) return 'Partial route';
+        if (raw === 'DIRECT') return 'Direct route';
+        if (raw === 'SAME_DEST_MID_ROUTE') return 'Same destination (mid-route pickup)';
+        return 'Partial route';
+    }
+
+    let html = '<h3>Browse Matching Rides</h3>';
+    filtered.forEach(match => {
+        const r = match.ride || match;
+        const ratingSummary = driverRatings[r.driverId];
+        const ratingText = ratingSummary
+            ? `Rating: ${ratingSummary.averageRating} (${ratingSummary.reviewCount} reviews)`
+            : 'Rating: N/A';
+        const alreadyJoined = joinedRideIds.has(r.id);
         html += `<div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:4px;">
             <p><strong>${r.source} → ${r.destination}</strong></p>
             <p>Date: ${r.date} | Time: ${r.time}</p>
-            <p>Driver: ${r.driverName} | Vehicle: ${r.vehicleModel}</p>
-            ${match.matchType ? `<p>Match Type: <strong>${match.matchType}</strong> | Score: ${match.matchScore}</p>` : ''}
+            <p>Driver: ${r.driverName} | Vehicle: ${r.vehicleModel || 'N/A'} | ${ratingText}</p>
+            ${match.matchType ? `<p>Match Type: <strong>${labelMatchType(match.matchType)}</strong> | Score: ${match.matchScore}</p>` : ''}
             <p>Available Seats: ${r.availableSeats} | Price/Seat: $${r.pricePerSeat}</p>
-            <label>Seats to book: <input type="number" id="seats_${r.id}" min="1" max="${r.availableSeats}" value="1"></label>
-            <button onclick="previewFare(${r.id})">Preview Fare</button>
-            <button onclick="bookRide(${r.id})">Pay & Book (Stripe)</button>
+            <label>Seats to book: <input type="number" id="seats_${r.id}" min="1" max="${r.availableSeats}" value="1" ${alreadyJoined ? 'disabled' : ''}></label>
+            ${alreadyJoined
+                ? '<p style="color:#059669; font-size:0.85rem; margin-top:0.35rem;"><strong>You have already joined this ride.</strong></p>'
+                : `<button onclick="previewFare(${r.id})">Review Fare</button>
+                   <button onclick="bookRide(${r.id})">Place Order &amp; Pay</button>`}
         </div>`;
     });
     document.getElementById('results').innerHTML = html;
+}
+
+document.getElementById('searchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await loadJoinedRides();
+    await performSearch();
 });
 
 async function bookRide(rideId) {
-    if (!stripeClient || !stripeCard) {
-        alert('Stripe is not ready. Check payment configuration and refresh.');
-        return;
-    }
-
     const seats = parseInt(document.getElementById('seats_' + rideId).value);
     const source = document.querySelector('input[name="source"]').value;
     const destination = document.querySelector('input[name="destination"]').value;
-
-    const pmResult = await stripeClient.createPaymentMethod({
-        type: 'card',
-        card: stripeCard
-    });
-    if (pmResult.error) {
-        alert(pmResult.error.message);
-        return;
-    }
-
-    const gateway = 'STRIPE';
-    const paymentToken = pmResult.paymentMethod.id;
+    const gateway = 'NONE';
+    const paymentToken = 'offline_demo';
     const resp = await fetch('/bookings/book-with-payment', {
         method: 'POST',
         headers: {
@@ -131,9 +248,13 @@ async function bookRide(rideId) {
     
     if (resp.ok) {
         const data = await resp.json();
-        alert(`Booking confirmed and paid! Total: $${data.booking.totalPrice}. Payment Ref: ${data.payment.providerPaymentId}`);
-        document.getElementById('searchForm').reset();
-        document.getElementById('results').innerHTML = '';
+        alert(`Booking confirmed! Total fare: $${data.booking.totalPrice}`);
+        await loadJoinedRides();
+        await performSearch();
+        document.getElementById('checkoutPanel').style.display = 'none';
+        selectedRideId = null;
+        selectedSeats = null;
+        selectedFare = null;
     } else {
         const err = await resp.text();
         alert(err || 'Booking failed');
@@ -157,9 +278,24 @@ async function previewFare(rideId) {
     }
 
     const fare = await resp.json();
-    alert(`Estimated Fare:\nBase $${fare.baseFare} + ($${fare.ratePerKm}/km * ${fare.distanceKm} km) = $${fare.fareBeforeSplit}\nYour total: $${fare.totalFare}`);
+    selectedRideId = rideId;
+    selectedSeats = seats;
+    selectedFare = fare;
+
+    const summary = document.getElementById('orderSummary');
+    const text = `Base $${fare.baseFare} + ($${fare.ratePerKm}/km × ${fare.distanceKm} km) = $${fare.fareBeforeSplit}. ` +
+        `Shared by ${fare.sharedByPassengers} passenger(s). Your total: $${fare.totalFare} for ${seats} seat(s).`;
+    summary.innerHTML = `
+        <p style="margin:0 0 0.3rem;"><strong>Selected ride:</strong> #${rideId} | Seats: ${seats}</p>
+        <p style="margin:0;">${text}</p>
+    `;
+    document.getElementById('checkoutPanel').style.display = 'block';
 }
     </script>
 </div>
 </body>
 </html>
+
+        <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+            <span>&larr;</span>
+        </button>

@@ -7,16 +7,66 @@
 </head>
 <body>
 <div class="container">
+    <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+        <span>&larr;</span>
+    </button>
+    <nav class="theme-switcher">
+        <a href="#" data-theme="dark">Dark</a>
+        <a href="#" data-theme="green">Green</a>
+        <a href="#" data-theme="violet">Violet</a>
+    </nav>
     <h2>Login</h2>
     <form id="loginForm">
     <label>Username (email or phone):<input type="text" name="username"></label>
     <label>Password:<input type="password" name="password"></label>
     <button type="submit">Login</button>
     </form>
+
+    <p id="loginWelcome" style="margin-top:0.75rem; font-weight:600; color:#374151; display:none;">
+        Welcome Back to Smart Ride
+    </p>
+
+    <p style="margin-top:0.5rem; font-size:0.85rem; color:#6b7280;">
+        <a href="#" id="forgotPasswordLink" style="color:#2563eb; text-decoration:none;">Forgot password?</a>
+        &nbsp;or use a different email/phone to try another account.
+    </p>
     <script>
 console.log('=== LOGIN PAGE LOADED ===');
 const loginForm = document.getElementById('loginForm');
 console.log('Form element found:', loginForm ? 'YES' : 'NO');
+
+    const loginWelcome = document.getElementById('loginWelcome');
+    const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+
+    if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            alert('Forgot password? For now, please contact admin@smartride.local or register a new account.');
+        });
+    }
+
+    // Theme switching (dark / green / violet) for login page only
+    const themeLinks = document.querySelectorAll('nav.theme-switcher a[data-theme]');
+    const themeClasses = ['theme-dark', 'theme-green', 'theme-violet'];
+
+    function applyTheme(themeKey) {
+        document.body.classList.remove(...themeClasses);
+        if (!themeKey) {
+            return;
+        }
+        const cls = 'theme-' + themeKey;
+        if (themeClasses.includes(cls)) {
+            document.body.classList.add(cls);
+        }
+    }
+
+    themeLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const key = this.getAttribute('data-theme');
+            applyTheme(key);
+        });
+    });
 
     async function redirectToDashboard(token) {
         const response = await fetch('/auth/me', {
@@ -30,8 +80,20 @@ console.log('Form element found:', loginForm ? 'YES' : 'NO');
         }
 
         const user = await response.json();
-        const target = user.role === 'DRIVER' ? '/driver-dashboard.html' : '/passenger-dashboard.html';
-        window.location.href = target;
+        let target;
+        if (user.role === 'ADMIN') {
+            target = '/admin-dashboard.html';
+        } else if (user.role === 'DRIVER') {
+            target = '/driver-dashboard.html';
+        } else {
+            target = '/passenger-dashboard.html';
+        }
+        if (loginWelcome) {
+            loginWelcome.style.display = 'block';
+        }
+        setTimeout(() => {
+            window.location.href = target;
+        }, 800);
     }
 
 loginForm.addEventListener('submit', function(e) {

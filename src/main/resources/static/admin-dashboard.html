@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="admin-body">
+<div class="container admin-container">
+    <header>
+        <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+            <span>&larr;</span>
+        </button>
+        <h1>Admin Dashboard</h1>
+        <p>Monitor rides, bookings, reviews, stats, users, and disputes.</p>
+    </header>
+
+    <nav>
+        <a href="/">Home</a>
+        <a href="/reviews.html">Reviews</a>
+        <a href="#" id="logoutBtn">Logout</a>
+    </nav>
+
+    <section class="admin-section">
+        <h2>Admin Stats</h2>
+        <div id="overview"></div>
+    </section>
+
+    <section class="admin-section">
+        <h2>User Management</h2>
+        <div id="users"></div>
+    </section>
+
+    <section class="admin-section">
+        <h2>Disputes</h2>
+        <div id="disputes"></div>
+    </section>
+
+    <section class="admin-section">
+        <h2>All Rides</h2>
+        <div id="allRides"></div>
+    </section>
+
+    <section class="admin-section">
+        <h2>All Bookings</h2>
+        <div id="allBookings"></div>
+    </section>
+
+    <section class="admin-section">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem;">
+            <h2 style="margin:0;">All Reviewed Rides</h2>
+            <button type="button" class="btn-chip" onclick="loadAllReviews()">Refresh reviews</button>
+        </div>
+        <div id="allReviews"></div>
+    </section>
+
+    <section class="admin-section">
+        <h2>Drop a review</h2>
+        <form id="adminReviewForm" class="admin-review-form">
+            <label>
+                Ride ID
+                <input type="number" id="adminReviewRideId" required>
+            </label>
+            <label>
+                Reviewee User ID
+                <input type="number" id="adminReviewRevieweeId" required>
+            </label>
+            <label>
+                Stars (1-5)
+                <input type="number" id="adminReviewStars" min="1" max="5" value="5" required>
+            </label>
+            <label>
+                Comments
+                <textarea id="adminReviewComments" rows="2" placeholder="Optional comment from admin"></textarea>
+            </label>
+            <button type="submit">Submit Review</button>
+        </form>
+        <div id="adminReviewMessage"></div>
+    </section>
+
+    <script>
+const token = localStorage.getItem('token');
+// Cache of users so we can show names/roles in the reviews section
+const adminUsersById = {};
+if (!token) {
+    window.location.href = '/login.html';
+}
+
+document.getElementById('logoutBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    window.location.href = '/login.html';
+});
+
+async function loadOverview() {
+    const resp = await fetch('/admin/overview', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('overview').innerHTML = '<p>Admin access required.</p>';
+        return;
+    }
+
+    const o = await resp.json();
+    document.getElementById('overview').innerHTML = `
+        <div class="admin-metrics-grid">
+            <div class="ticket-card"><strong>Total Rides</strong><span class="metric-value">${o.totalRides}</span></div>
+            <div class="ticket-card"><strong>Total Bookings</strong><span class="metric-value">${o.totalBookings}</span></div>
+            <div class="ticket-card"><strong>Total Payments</strong><span class="metric-value">${o.totalPayments}</span></div>
+            <div class="ticket-card"><strong>Total Earnings</strong><span class="metric-value">$${o.totalEarnings}</span></div>
+            <div class="ticket-card"><strong>Active Users</strong><span class="metric-value">${o.activeUsers}</span></div>
+            <div class="ticket-card"><strong>Blocked Users</strong><span class="metric-value">${o.blockedUsers}</span></div>
+            <div class="ticket-card"><strong>Ride Cancellations</strong><span class="metric-value">${o.rideCancellations}</span></div>
+            <div class="ticket-card"><strong>Open Disputes</strong><span class="metric-value">${o.openDisputes}</span></div>
+        </div>`;
+}
+
+async function loadUsers() {
+    const resp = await fetch('/admin/users', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('users').innerHTML = '<p>Unable to load users.</p>';
+        return;
+    }
+    const users = await resp.json();
+
+    let html = '';
+    users.forEach(u => {
+        adminUsersById[u.id] = u;
+        const avgRatingNumber = (u.averageRating == null ? 0 : Number(u.averageRating));
+        const avgRatingText = avgRatingNumber.toFixed(2);
+        html += `<article class="ticket-card admin-user-card">
+            <header class="admin-user-header">
+                <div>
+                    <strong>${u.name || 'N/A'}</strong>
+                    <span class="admin-user-role">${u.role}</span>
+                </div>
+                <div class="admin-user-contact">${u.email || u.phone || 'N/A'}</div>
+            </header>
+            <p class="admin-user-flags">
+                <span class="badge ${u.blocked ? 'badge-danger' : 'badge-success'}">${u.blocked ? 'Blocked' : 'Active'}</span>
+                ${u.role === 'DRIVER' ? `<span class="badge ${u.driverVerified ? 'badge-success' : 'badge-muted'}">${u.driverVerified ? 'Verified Driver' : 'Unverified Driver'}</span>` : ''}
+            </p>
+            <div class="admin-user-stats">
+                <span title="Rides created as driver">🚗 Rides: <strong>${u.ridesAsDriver || 0}</strong></span>
+                <span title="Bookings made as passenger">🎟️ Bookings: <strong>${u.bookingsAsPassenger || 0}</strong></span>
+                <span title="Average rating from reviews">⭐ Rating: <strong>${avgRatingText}</strong> (${u.reviewCount || 0} reviews)</span>
+            </div>
+            <div class="admin-user-actions">
+                <button class="btn-chip" onclick="toggleBlock(${u.id}, ${!u.blocked})">${u.blocked ? 'Unblock User' : 'Block User'}</button>
+                ${u.role === 'DRIVER' ? `<button class="btn-chip secondary" onclick="verifyDriver(${u.id}, ${!u.driverVerified})">${u.driverVerified ? 'Unverify Driver' : 'Verify Driver'}</button>` : ''}
+            </div>
+        </article>`;
+    });
+    document.getElementById('users').innerHTML = html || '<p>No users found.</p>';
+}
+
+async function toggleBlock(userId, blocked) {
+    const resp = await fetch(`/admin/users/${userId}/block`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ blocked })
+    });
+
+    if (!resp.ok) {
+        alert(await resp.text() || 'Unable to update block status');
+        return;
+    }
+    loadUsers();
+    loadOverview();
+}
+
+async function verifyDriver(userId, verified) {
+    const resp = await fetch(`/admin/users/${userId}/verify-driver`, {
+        method: 'PATCH',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ verified })
+    });
+
+    if (!resp.ok) {
+        alert(await resp.text() || 'Unable to update driver verification');
+        return;
+    }
+    loadUsers();
+    loadOverview();
+}
+
+async function loadDisputes() {
+    const resp = await fetch('/admin/disputes', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('disputes').innerHTML = '<p>Unable to load disputes.</p>';
+        return;
+    }
+
+    const disputes = await resp.json();
+    if (disputes.length === 0) {
+        document.getElementById('disputes').innerHTML = '<p>No disputes raised yet.</p>';
+        return;
+    }
+
+    let html = '';
+    disputes.forEach(d => {
+        html += `<article class="ticket-card admin-dispute-card">
+            <header class="admin-dispute-header">
+                <div>
+                    <strong>Dispute #${d.id}</strong>
+                    <span class="admin-dispute-ride">Ride ${d.rideId}</span>
+                </div>
+                <span class="badge ${d.status === 'OPEN' ? 'badge-warning' : 'badge-muted'}">${d.status}</span>
+            </header>
+            <p class="admin-dispute-reason">${d.reason}</p>
+            ${d.status === 'OPEN' ? `<div class="admin-dispute-actions"><button class="btn-chip" onclick="resolveDispute(${d.id})">Mark as Resolved</button></div>` : ''}
+        </article>`;
+    });
+    document.getElementById('disputes').innerHTML = html;
+}
+
+async function resolveDispute(disputeId) {
+    const resp = await fetch(`/admin/disputes/${disputeId}/resolve`, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!resp.ok) {
+        alert(await resp.text() || 'Unable to resolve dispute');
+        return;
+    }
+    loadDisputes();
+    loadOverview();
+}
+
+window.toggleBlock = toggleBlock;
+window.verifyDriver = verifyDriver;
+window.resolveDispute = resolveDispute;
+async function loadAllRides() {
+    const resp = await fetch('/admin/rides', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('allRides').innerHTML = '<p>Unable to load rides.</p>';
+        return;
+    }
+    const rides = await resp.json();
+    if (!rides.length) {
+        document.getElementById('allRides').innerHTML = '<p>No rides posted yet.</p>';
+        return;
+    }
+    let html = '';
+    rides.forEach(r => {
+        html += `<article class="ticket-card">
+            <div class="ticket-header">
+                <span class="ticket-id">Ride #${r.id}</span>
+                <span class="ticket-status">${r.status}</span>
+            </div>
+            <div class="ticket-grid">
+                <div class="ticket-field"><span class="ticket-label">Route</span><span class="ticket-value">${r.source} → ${r.destination}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Date/Time</span><span class="ticket-value">${r.date || ''} ${r.time || ''}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Driver</span><span class="ticket-value">${r.driverName || ''}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Vehicle</span><span class="ticket-value">${r.vehicleModel || ''}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Seats</span><span class="ticket-value">${r.availableSeats}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Price/Seat</span><span class="ticket-value">$${r.pricePerSeat}</span></div>
+            </div>
+        </article>`;
+    });
+    document.getElementById('allRides').innerHTML = html;
+}
+
+async function loadAllBookings() {
+    const resp = await fetch('/admin/bookings', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('allBookings').innerHTML = '<p>Unable to load bookings.</p>';
+        return;
+    }
+    const bookings = await resp.json();
+    if (!bookings.length) {
+        document.getElementById('allBookings').innerHTML = '<p>No bookings yet.</p>';
+        return;
+    }
+    let html = '';
+    bookings.forEach(b => {
+        html += `<article class="ticket-card">
+            <div class="ticket-header">
+                <span class="ticket-id">Booking #${b.id}</span>
+                <span class="ticket-status">${b.bookingStatus}</span>
+            </div>
+            <div class="ticket-grid">
+                <div class="ticket-field"><span class="ticket-label">Ride ID</span><span class="ticket-value">${b.rideId}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Passenger</span><span class="ticket-value">${b.passengerName || b.passengerId}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Seats</span><span class="ticket-value">${b.seatsBooked}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Total Fare</span><span class="ticket-value">$${b.totalPrice}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Payment</span><span class="ticket-value">${b.paymentStatus}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Created At</span><span class="ticket-value">${b.createdAt || ''}</span></div>
+            </div>
+        </article>`;
+    });
+    document.getElementById('allBookings').innerHTML = html;
+}
+
+async function loadAllReviews() {
+    const resp = await fetch('/admin/reviews', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('allReviews').innerHTML = '<p>Unable to load reviews.</p>';
+        return;
+    }
+    const reviews = await resp.json();
+    if (!reviews.length) {
+        document.getElementById('allReviews').innerHTML = '<p>No reviews submitted yet.</p>';
+        return;
+    }
+    let html = '';
+    reviews.forEach(r => {
+        const reviewer = adminUsersById[r.reviewerId] || null;
+        const reviewee = adminUsersById[r.revieweeId] || null;
+        const reviewerLabel = reviewer
+            ? `${reviewer.name || ('User ' + reviewer.id)} (${reviewer.role})`
+            : `${r.reviewerId} (${r.reviewerRole || 'N/A'})`;
+        const revieweeLabel = reviewee
+            ? `${reviewee.name || ('User ' + reviewee.id)} (${reviewee.role})`
+            : String(r.revieweeId);
+        html += `<article class="ticket-card">
+            <div class="ticket-header">
+                <span class="ticket-id">Review #${r.id}</span>
+                <span class="ticket-status">${r.stars} ★</span>
+            </div>
+            <div class="ticket-grid">
+                <div class="ticket-field"><span class="ticket-label">Ride ID</span><span class="ticket-value">${r.rideId}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Booking ID</span><span class="ticket-value">${r.bookingId || '-'}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Reviewer</span><span class="ticket-value">${reviewerLabel}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Reviewee</span><span class="ticket-value">${revieweeLabel}</span></div>
+                <div class="ticket-field"><span class="ticket-label">Created At</span><span class="ticket-value">${r.createdAt || ''}</span></div>
+            </div>
+            <div class="ticket-footer">${r.comments || ''}</div>
+        </article>`;
+    });
+    document.getElementById('allReviews').innerHTML = html;
+}
+
+document.getElementById('adminReviewForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const rideId = parseInt(document.getElementById('adminReviewRideId').value, 10);
+    const revieweeId = parseInt(document.getElementById('adminReviewRevieweeId').value, 10);
+    const stars = parseInt(document.getElementById('adminReviewStars').value, 10);
+    const comments = document.getElementById('adminReviewComments').value;
+
+    const resp = await fetch('/reviews/submit', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rideId, revieweeId, stars, comments })
+    });
+
+    const msgEl = document.getElementById('adminReviewMessage');
+    if (!resp.ok) {
+        const err = await resp.text();
+        msgEl.innerHTML = `<p style="color:red;">${err || 'Unable to submit review'}</p>`;
+        return;
+    }
+
+    msgEl.innerHTML = '<p style="color:green;">Review submitted successfully.</p>';
+    document.getElementById('adminReviewForm').reset();
+    document.getElementById('adminReviewStars').value = 5;
+    loadAllReviews();
+});
+
+loadOverview();
+loadUsers();
+loadDisputes();
+loadAllRides();
+loadAllBookings();
+loadAllReviews();
+    </script>
+</div>
+</body>
+</html>

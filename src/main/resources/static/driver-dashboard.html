@@ -12,6 +12,9 @@
 <body>
 <div class="container">
     <header>
+        <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+            <span>&larr;</span>
+        </button>
         <h1>Driver Dashboard</h1>
         <div id="driverSummary"></div>
         <div id="driverUpgradeCard" style="display:none; margin-top:1rem; background:#fffbe6; border:1px solid #ffd76a; border-radius:8px; padding:1rem;">
@@ -31,8 +34,21 @@
         <a href="/">Home</a>
         <a href="/passenger-dashboard.html">Passenger Dashboard</a>
         <a href="/post-ride.html">Post Ride</a>
+        <a href="/reviews.html">Reviews</a>
         <a href="#" id="logoutBtn">Logout</a>
+        <a href="#" id="themeToggle" class="theme-toggle">Theme: Default</a>
     </nav>
+
+    <div id="driverAccountBar" class="account-bar" style="display:none;">
+        <div class="account-main">
+            <span id="driverAccountName" class="account-name"></span>
+            <span id="driverAccountRole" class="account-role-badge"></span>
+        </div>
+        <div class="account-meta">
+            <span id="driverAccountEmail"></span>
+            <span id="driverAccountPhone"></span>
+        </div>
+    </div>
 
     <div style="display:grid; gap:1.5rem; grid-template-columns: 1.15fr 1fr; align-items:start;">
         <section>
@@ -51,19 +67,21 @@
 
         <section>
             <h2>Driver Tips</h2>
-            <div style="display:flex; justify-content:center; margin:0.5rem 0 1rem;">
-                <lottie-player
-                    src="https://assets1.lottiefiles.com/packages/lf20_myejiggj.json"
-                    background="transparent"
-                    speed="1"
-                    style="width: 200px; height: 200px;"
-                    loop
-                    autoplay>
-                </lottie-player>
+            <div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:8px; text-align:left; background:rgba(0,102,204,0.03);">
+                <h3 style="margin-top:0; font-size:1rem; color:#004b8f;">Before you start</h3>
+                <ul style="padding-left:1.2rem; margin:0.4rem 0 0; font-size:0.9rem; color:#0f172a;">
+                    <li>Keep your vehicle clean and check fuel, tyres, and lights.</li>
+                    <li>Start the ride a few minutes early to avoid last‑minute rush.</li>
+                    <li>Verify passenger name and pickup point before moving.</li>
+                </ul>
             </div>
-            <div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:8px;">
-            </div>
-            <div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:8px;">
+            <div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:8px; text-align:left; background:rgba(0,102,204,0.03);">
+                <h3 style="margin-top:0; font-size:1rem; color:#004b8f;">On the road</h3>
+                <ul style="padding-left:1.2rem; margin:0.4rem 0 0; font-size:0.9rem; color:#0f172a;">
+                    <li>Drive smoothly and avoid sudden braking or speeding.</li>
+                    <li>Share ETA updates via chat if you are running late.</li>
+                    <li>End the ride in the app only after all passengers exit safely.</li>
+                </ul>
             </div>
         </section>
     </div>
@@ -74,6 +92,10 @@
     <div id="rides"></div>
     <h2>Driver Transaction History</h2>
     <div id="driverTransactions"></div>
+    <h2>Notifications</h2>
+    <div id="driverNotifications"></div>
+    <h2>Rate Passenger Behavior</h2>
+    <div id="passengerFeedbackSection"></div>
     <script>
 const token = localStorage.getItem('token');
 if (!token) {
@@ -92,6 +114,52 @@ const driverUpgradeForm = document.getElementById('driverUpgradeForm');
 const driverUpgradeMessage = document.getElementById('driverUpgradeMessage');
 const liveFeed = document.getElementById('liveFeed');
 const driverTransactions = document.getElementById('driverTransactions');
+const driverNotifications = document.getElementById('driverNotifications');
+const passengerFeedbackSection = document.getElementById('passengerFeedbackSection');
+const driverAccountBar = document.getElementById('driverAccountBar');
+const driverAccountName = document.getElementById('driverAccountName');
+const driverAccountRole = document.getElementById('driverAccountRole');
+const driverAccountEmail = document.getElementById('driverAccountEmail');
+const driverAccountPhone = document.getElementById('driverAccountPhone');
+const themeToggle = document.getElementById('themeToggle');
+
+const themeClasses = ['theme-dark', 'theme-green', 'theme-violet'];
+
+function applyTheme(themeClass) {
+    document.body.classList.remove(...themeClasses);
+    if (themeClass) {
+        document.body.classList.add(themeClass);
+    }
+}
+
+function themeLabel(themeClass) {
+    switch (themeClass) {
+        case 'theme-dark': return 'Dark';
+        case 'theme-green': return 'Green';
+        case 'theme-violet': return 'Purple';
+        default: return 'Default';
+    }
+}
+
+function nextTheme(current) {
+    const order = ['', 'theme-dark', 'theme-green', 'theme-violet'];
+    const idx = order.indexOf(current);
+    return order[(idx + 1) % order.length];
+}
+
+const storedTheme = localStorage.getItem('srTheme') || '';
+applyTheme(storedTheme);
+if (themeToggle) {
+    themeToggle.textContent = 'Theme: ' + themeLabel(storedTheme);
+    themeToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        const active = themeClasses.find(c => document.body.classList.contains(c)) || '';
+        const next = nextTheme(active);
+        applyTheme(next);
+        localStorage.setItem('srTheme', next);
+        themeToggle.textContent = 'Theme: ' + themeLabel(next);
+    });
+}
 
 logoutBtn.addEventListener('click', function(e) {
     e.preventDefault();
@@ -115,6 +183,14 @@ async function loadDriverProfile() {
         ? 'Driver mode active'
         : 'Passenger mode (you can still browse this dashboard)';
     driverSummary.innerHTML = `<p style="color:white; margin-top:0.75rem;">${user.name} | ${user.vehicleModel || 'Vehicle pending'} | ${user.licensePlate || 'No license plate'} | ${roleNote}</p>`;
+
+    if (driverAccountBar && user) {
+        driverAccountBar.style.display = 'flex';
+        driverAccountName.textContent = user.name || 'Driver';
+        driverAccountRole.textContent = user.role || 'USER';
+        driverAccountEmail.textContent = user.email ? `Email: ${user.email}` : 'Email: not set';
+        driverAccountPhone.textContent = user.phone ? `Phone: ${user.phone}` : 'Phone: not set';
+    }
 
     if (user.role === 'PASSENGER') {
         driverUpgradeCard.style.display = 'block';
@@ -239,12 +315,135 @@ async function loadDriverTransactions() {
 
     let html = '';
     list.forEach(p => {
+        const receipt = p.receiptUrl
+            ? `<a href="${p.receiptUrl}" target="_blank" rel="noopener">View receipt</a>`
+            : 'N/A';
         html += `<div style="border:1px solid #9fd0f8; padding:0.65rem; margin:0.45rem 0; border-radius:8px; background:#f8fcff;">
             <p><strong>${p.gateway}</strong> | ${p.status} | Payout: ${p.payoutStatus || 'HELD'} | Amount: $${p.amount}</p>
             <p>Ride: ${p.rideId} | Booking: ${p.bookingId} | Ref: ${p.providerPaymentId}</p>
+            <p>Receipt: ${receipt}</p>
         </div>`;
     });
     driverTransactions.innerHTML = html;
+}
+
+async function loadDriverNotifications() {
+    const resp = await fetch('/notifications/my', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        driverNotifications.innerHTML = '<p>Unable to load notifications.</p>';
+        return;
+    }
+
+    const data = await resp.json();
+    const list = data.notifications || [];
+    if (list.length === 0) {
+        driverNotifications.innerHTML = '<p>No notifications yet.</p>';
+        return;
+    }
+
+    let html = `<p><strong>${data.unreadCount || 0}</strong> unread notifications</p>`;
+    list.forEach(n => {
+        html += `<div style="border:1px solid #dbeaf9; border-radius:8px; padding:0.6rem; margin:0.45rem 0; background:${n.read ? '#f9fcff' : '#eef7ff'};">
+            <p><strong>${n.title}</strong> <span style="color:#6888a6;">[${n.type}]</span></p>
+            <p>${n.message}</p>
+            <button onclick="markDriverNotificationRead(${n.id})" ${n.read ? 'disabled' : ''}>Mark read</button>
+        </div>`;
+    });
+    driverNotifications.innerHTML = html;
+}
+
+async function markDriverNotificationRead(notificationId) {
+    const resp = await fetch(`/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (resp.ok) {
+        loadDriverNotifications();
+    }
+}
+
+async function loadPassengerFeedbackTargets() {
+    const resp = await fetch('/reviews/my/pending', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        passengerFeedbackSection.innerHTML = '<p>Unable to load passenger feedback options.</p>';
+        return;
+    }
+
+    const items = await resp.json();
+    const targets = items.filter(x => x.reviewerRole === 'DRIVER');
+    if (targets.length === 0) {
+        passengerFeedbackSection.innerHTML = '<p>No completed rides pending passenger feedback from you.</p>';
+        return;
+    }
+
+    let html = '<p style="color:#4f6d88; margin:0.35rem 0 0.6rem;">Tap an emoji to indicate how satisfied you are with the passenger behavior.</p>';
+    targets.forEach((t, idx) => {
+        html += `<div style="border:1px solid #d7e8f8; border-radius:10px; padding:0.75rem; margin:0.5rem 0; background:#fbfdff; text-align:left;">
+            <p><strong>${t.route}</strong></p>
+            <p>Passenger: ${t.revieweeName}</p>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin:0.45rem 0;">
+                <button type="button" onclick="submitPassengerFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 1)">😡 Very Bad</button>
+                <button type="button" onclick="submitPassengerFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 2)">🙁 Bad</button>
+                <button type="button" onclick="submitPassengerFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 3)">😐 Okay</button>
+                <button type="button" onclick="submitPassengerFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 4)">🙂 Good</button>
+                <button type="button" onclick="submitPassengerFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 5)">😍 Excellent</button>
+            </div>
+            <textarea id="passenger_feedback_comment_${idx}" rows="2" placeholder="Optional feedback on passenger behavior"></textarea>
+            <button type="button" style="margin-top:0.45rem;" onclick="submitPassengerFeedbackWithComment(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, ${idx})">Submit with comment</button>
+        </div>`;
+    });
+    passengerFeedbackSection.innerHTML = html;
+}
+
+async function submitPassengerFeedback(rideId, revieweeId, bookingId, stars) {
+    const resp = await fetch('/reviews/submit', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rideId, revieweeId, bookingId, stars, comments: '' })
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to submit passenger feedback'}</p>`;
+        return;
+    }
+
+    message.innerHTML = '<p style="color:green;">Thanks. Your rating for the passenger was submitted.</p>';
+    loadPassengerFeedbackTargets();
+}
+
+async function submitPassengerFeedbackWithComment(rideId, revieweeId, bookingId, idx) {
+    const comment = document.getElementById(`passenger_feedback_comment_${idx}`).value.trim();
+    if (!comment) {
+        message.innerHTML = '<p style="color:red;">Please add a comment or use emoji-only feedback.</p>';
+        return;
+    }
+    const resp = await fetch('/reviews/submit', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rideId, revieweeId, bookingId, stars: 5, comments: comment })
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to submit passenger feedback'}</p>`;
+        return;
+    }
+
+    message.innerHTML = '<p style="color:green;">Thanks. Your detailed feedback for the passenger was submitted.</p>';
+    loadPassengerFeedbackTargets();
 }
 
 async function cancelRide(rideId) {
@@ -306,6 +505,9 @@ async function completeRide(rideId) {
 window.cancelRide = cancelRide;
 window.rescheduleRide = rescheduleRide;
 window.completeRide = completeRide;
+window.markDriverNotificationRead = markDriverNotificationRead;
+window.submitPassengerFeedback = submitPassengerFeedback;
+window.submitPassengerFeedbackWithComment = submitPassengerFeedbackWithComment;
 
 function connectRealtime() {
     const socket = new SockJS('/ws');
@@ -316,6 +518,7 @@ function connectRealtime() {
             liveFeed.innerHTML = `<div style="margin:0.6rem 0; padding:0.55rem 0.7rem; background:#e9f5ff; border:1px solid #b8defa; border-radius:8px;">${payload.message}</div>` + liveFeed.innerHTML;
             loadRidesAndBookings();
             loadDriverTransactions();
+            loadDriverNotifications();
         });
     });
 }
@@ -324,6 +527,8 @@ loadDriverProfile().then(user => {
     if (user) {
         loadRidesAndBookings();
         loadDriverTransactions();
+        loadDriverNotifications();
+        loadPassengerFeedbackTargets();
         connectRealtime();
     }
 });

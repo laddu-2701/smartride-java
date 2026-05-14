@@ -24,6 +24,7 @@ public class Booking {
     private String bookingStatus;
     private String paymentStatus;
     private Long paymentTransactionId;
+    private LocalDateTime reminderSentAt;
     private LocalDateTime createdAt;
 
     public Long getId() { return id; }
@@ -56,6 +57,8 @@ public class Booking {
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
     public Long getPaymentTransactionId() { return paymentTransactionId; }
     public void setPaymentTransactionId(Long paymentTransactionId) { this.paymentTransactionId = paymentTransactionId; }
+    public LocalDateTime getReminderSentAt() { return reminderSentAt; }
+    public void setReminderSentAt(LocalDateTime reminderSentAt) { this.reminderSentAt = reminderSentAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 

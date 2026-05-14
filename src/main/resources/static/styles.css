@@ -22,6 +22,62 @@ body {
     overflow-y: auto;
 }
 
+/* Theme variants for login page (applied via body class) */
+body.theme-dark {
+    background: radial-gradient(circle at top, #1f2933 0%, #020617 55%, #000 100%);
+    color: #e5e7eb;
+}
+
+body.theme-dark .container {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: rgba(148, 163, 184, 0.6);
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9);
+}
+
+/* Improve text contrast in dark theme */
+body.theme-dark h1,
+body.theme-dark h2,
+body.theme-dark h3,
+body.theme-dark label,
+body.theme-dark p,
+body.theme-dark span {
+    color: #e5e7eb;
+}
+
+/* Ensure tip list items are readable in dark theme */
+body.theme-dark li {
+    color: #e5e7eb !important;
+}
+
+/* Driver/passenger tip cards background in dark theme */
+body.theme-dark .container div[style*="border:1px solid #0066cc"] {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border-color: rgba(59, 130, 246, 0.9) !important;
+}
+
+body.theme-dark #message {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.7);
+}
+
+body.theme-green {
+    background: linear-gradient(135deg, #0f766e 0%, #22c55e 45%, #15803d 100%);
+}
+
+body.theme-green .container {
+    background: rgba(240, 253, 250, 0.96);
+    border-color: rgba(45, 212, 191, 0.6);
+}
+
+body.theme-violet {
+    background: linear-gradient(135deg, #4c1d95 0%, #7c3aed 40%, #a855f7 100%);
+}
+
+body.theme-violet .container {
+    background: rgba(250, 245, 255, 0.97);
+    border-color: rgba(221, 214, 254, 0.8);
+}
+
 /* Animated background gradient */
 body::before {
     content: '';
@@ -168,6 +224,16 @@ h3 {
     font-size: 1.1rem;
 }
 
+.map-container {
+    width: 100%;
+    height: 280px;
+    margin-top: 1rem;
+    border-radius: 12px;
+    border: 1px solid #cfe8ff;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 102, 204, 0.08);
+}
+
 #authStatus {
     margin-top: 0.5rem;
     font-size: 0.9rem;
@@ -237,6 +303,30 @@ nav a:hover {
     animation: navPulse 0.5s ease;
 }
 
+/* Nav link contrast in dark theme */
+body.theme-dark nav a {
+    color: #e5e7eb;
+}
+
+body.theme-dark nav a:hover {
+    background: rgba(30, 64, 175, 0.6);
+    color: #f9fafb;
+}
+
+/* Compact theme switcher styling for login page nav */
+nav.theme-switcher {
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+nav.theme-switcher a {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.9rem;
+}
+
 @keyframes navPulse {
     0%, 100% {
         box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
@@ -280,6 +370,24 @@ nav #logoutBtn:hover {
     box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
+/* Compact theme toggle button inside nav for logged-in dashboards */
+.theme-toggle {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6);
+    background: rgba(15, 23, 42, 0.08);
+    color: #0f172a;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.theme-toggle:hover {
+    background: rgba(148, 163, 184, 0.16);
+}
+
 form {
     max-width: 100%;
 }
@@ -303,6 +411,151 @@ label {
         opacity: 1;
         transform: translateX(0);
     }
+}
+
+/* --- Shared card + admin dashboard styling --- */
+
+.ticket-card {
+    background: linear-gradient(160deg, #ffffff 0%, #f5faff 100%);
+    border: 1px solid #cfe8ff;
+    border-radius: 12px;
+    padding: 0.85rem 0.95rem;
+    box-shadow: 0 8px 24px rgba(0, 102, 204, 0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.metric-value {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #004b8f;
+}
+
+.admin-container {
+    max-width: 960px;
+}
+
+.admin-section + .admin-section {
+    margin-top: 1.5rem;
+}
+
+.admin-metrics-grid {
+    margin-top: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.admin-user-card,
+.admin-dispute-card {
+    text-align: left;
+}
+
+.admin-user-header,
+.admin-dispute-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.admin-user-role {
+    display: inline-block;
+    margin-left: 0.4rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #667eea;
+}
+
+.admin-user-contact {
+    font-size: 0.8rem;
+    color: #5f6c80;
+}
+
+.admin-user-flags {
+    margin: 0.35rem 0 0.45rem;
+}
+
+.admin-user-actions,
+.admin-dispute-actions {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.admin-dispute-ride {
+    display: inline-block;
+    margin-left: 0.4rem;
+    font-size: 0.8rem;
+    color: #5f6c80;
+}
+
+.admin-dispute-reason {
+    font-size: 0.9rem;
+    color: #3b4250;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.18rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.badge-success {
+    background: #ddf9ea;
+    color: #0b6e3e;
+    border: 1px solid #9ae3bf;
+}
+
+.badge-danger {
+    background: #ffe4e4;
+    color: #b22222;
+    border: 1px solid #ffb5b5;
+}
+
+.badge-warning {
+    background: #fff6dd;
+    color: #a56a00;
+    border: 1px solid #ffd980;
+}
+
+.badge-muted {
+    background: #edf1f9;
+    color: #5f6c80;
+    border: 1px solid #d1d9ea;
+}
+
+.btn-chip {
+    border: none;
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-chip.secondary {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #cfe0ff;
+    box-shadow: none;
+}
+
+.btn-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.35);
 }
 
 label:hover {
@@ -330,6 +583,18 @@ input, select {
     font-family: inherit;
     background: white;
     position: relative;
+}
+
+/* Inputs in dark theme */
+body.theme-dark input,
+body.theme-dark select {
+    background: #020617;
+    border-color: #1f2937;
+    color: #e5e7eb;
+}
+
+body.theme-dark input::placeholder {
+    color: #9ca3af;
 }
 
 input::placeholder {
@@ -385,6 +650,86 @@ button {
     letter-spacing: 0.5px;
     position: relative;
     overflow: hidden;
+}
+
+/* Account info bar shown at top of dashboards when logged in */
+.account-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    margin: 0 0 1rem 0;
+    border-radius: 10px;
+    background: linear-gradient(120deg, rgba(15,23,42,0.9), rgba(30,64,175,0.9));
+    color: #e5e7eb;
+    box-shadow: 0 10px 25px rgba(15,23,42,0.55);
+}
+
+.account-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.account-name {
+    font-weight: 700;
+    font-size: 0.98rem;
+}
+
+.account-role-badge {
+    display: inline-block;
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+
+.back-home-btn {
+    position: fixed;
+    top: 0.8rem;
+    left: 0.8rem;
+    z-index: 50;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(148, 163, 184, 0.9);
+    color: #111827;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.back-home-btn:hover {
+    background: #e5f0ff;
+}
+
+.back-home-btn span {
+    font-size: 1rem;
+}
+    letter-spacing: 0.08em;
+    background: rgba(248, 250, 252, 0.12);
+    border: 1px solid rgba(191, 219, 254, 0.7);
+}
+
+.account-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.78rem;
+    opacity: 0.9;
+}
+
+.account-meta span {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .account-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 button::before {

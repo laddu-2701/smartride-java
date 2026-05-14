@@ -5,13 +5,13 @@ import com.carpooling.model.Ride;
 import com.carpooling.model.User;
 import com.carpooling.repository.BookingRepository;
 import com.carpooling.repository.UserRepository;
-import com.carpooling.service.EmailNotificationService;
 import com.carpooling.service.RideService;
 import com.carpooling.service.CustomUserDetails;
 import com.carpooling.service.RealtimeEventService;
 import com.carpooling.service.RouteMatchingService;
 import com.carpooling.service.RideMatchResult;
 import com.carpooling.service.PaymentService;
+import com.carpooling.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -36,7 +36,7 @@ public class RideController {
     private BookingRepository bookingRepository;
 
     @Autowired
-    private EmailNotificationService emailNotificationService;
+    private NotificationService notificationService;
 
     @Autowired
     private RealtimeEventService realtimeEventService;
@@ -125,7 +125,7 @@ public class RideController {
         for (Booking booking : bookings) {
             if ("CONFIRMED".equalsIgnoreCase(booking.getBookingStatus())) {
                 userRepository.findById(booking.getPassengerId()).ifPresent(
-                        passenger -> emailNotificationService.sendRideCancelledEmail(passenger, booking)
+                        passenger -> notificationService.notifyRideCancelled(passenger, booking)
                 );
             }
         }
@@ -161,7 +161,7 @@ public class RideController {
             for (Booking booking : bookings) {
                 if ("CONFIRMED".equalsIgnoreCase(booking.getBookingStatus())) {
                     userRepository.findById(booking.getPassengerId()).ifPresent(
-                            passenger -> emailNotificationService.sendRideRescheduledEmail(passenger, booking, newDateStr, newTimeStr)
+                            passenger -> notificationService.notifyRideRescheduled(passenger, booking, newDateStr, newTimeStr)
                     );
                 }
             }

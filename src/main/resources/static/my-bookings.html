@@ -84,10 +84,21 @@
 </head>
 <body>
 <div class="container">
+    <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+        <span>&larr;</span>
+    </button>
     <h2>My Bookings</h2>
     <div id="bookings"></div>
     <h2 style="margin-top:1.5rem;">Payment Transactions</h2>
     <div id="payments"></div>
+    <h2 style="margin-top:1.5rem;">Raise a Dispute</h2>
+    <form id="disputeForm">
+        <label>Ride ID: <input type="number" name="rideId" required></label>
+        <label>Booking ID: <input type="number" name="bookingId"></label>
+        <label>Reason: <textarea name="reason" rows="3" required></textarea></label>
+        <button type="submit">Submit Dispute</button>
+    </form>
+    <div id="disputeMessage"></div>
     <script>
 const token = localStorage.getItem('token');
 if (!token) {
@@ -185,6 +196,34 @@ async function loadPayments() {
     });
     document.getElementById('payments').innerHTML = html;
 }
+
+document.getElementById('disputeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const data = {};
+    new FormData(e.target).forEach((value, key) => {
+        if (value !== '') {
+            data[key] = value;
+        }
+    });
+
+    const resp = await fetch('/disputes/raise', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(data)
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        document.getElementById('disputeMessage').innerHTML = `<p style="color:red;">${err || 'Unable to raise dispute'}</p>`;
+        return;
+    }
+
+    document.getElementById('disputeMessage').innerHTML = '<p style="color:green;">Dispute submitted. Admin team will review it.</p>';
+    e.target.reset();
+});
 
 loadBookings();
 loadPayments();

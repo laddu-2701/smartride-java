@@ -137,15 +137,6 @@
             text-align: left;
         }
 
-        #stripeCardPanel {
-            margin: 0.8rem 0;
-            text-align: left;
-            border: 1px solid #b8defa;
-            border-radius: 10px;
-            background: #f8fcff;
-            padding: 0.75rem;
-        }
-
         #card-element {
             background: #fff;
             border: 1px solid #cfdff0;
@@ -181,6 +172,9 @@
 <body>
 <div class="container">
     <header>
+        <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+            <span>&larr;</span>
+        </button>
         <h1>Passenger Dashboard</h1>
         <div id="passengerSummary"></div>
     </header>
@@ -189,8 +183,21 @@
         <a href="/">Home</a>
         <a href="/driver-dashboard.html">Driver Dashboard</a>
         <a href="/my-bookings.html">Bookings</a>
+        <a href="/reviews.html">Reviews</a>
         <a href="#" id="logoutBtn">Logout</a>
+        <a href="#" id="themeToggle" class="theme-toggle">Theme: Default</a>
     </nav>
+
+    <div id="passengerAccountBar" class="account-bar" style="display:none;">
+        <div class="account-main">
+            <span id="passengerAccountName" class="account-name"></span>
+            <span id="passengerAccountRole" class="account-role-badge"></span>
+        </div>
+        <div class="account-meta">
+            <span id="passengerAccountEmail"></span>
+            <span id="passengerAccountPhone"></span>
+        </div>
+    </div>
 
     <div style="max-width:760px; margin:0 auto;">
         <section style="text-align:center;">
@@ -206,29 +213,48 @@
                     <label class="field-label">Date:
                         <input type="date" name="date" required>
                     </label>
-                    <button type="submit">Search Rides</button>
+                    <button type="submit">Browse Rides</button>
                 </form>
-                <div class="lottie-wrap">
-                    <lottie-player
-                        src="https://assets9.lottiefiles.com/packages/lf20_touohxv0.json"
-                        background="transparent"
-                        speed="1"
-                        style="width: 190px; height: 190px;"
-                        loop
-                        autoplay>
-                    </lottie-player>
+                <div style="text-align:left;">
+                    <h3 style="font-size:1rem; color:#004b8f; margin-bottom:0.4rem;">Passenger Tips</h3>
+                    <ul style="padding-left:1.2rem; margin:0; font-size:0.9rem; color:#0f172a;">
+                        <li>Be ready at the pickup point a few minutes early.</li>
+                        <li>Share accurate pickup and drop locations to avoid confusion.</li>
+                        <li>Wear a seat belt and respect the driver and other passengers.</li>
+                        <li>Update or cancel your booking in the app instead of no‑showing.</li>
+                    </ul>
                 </div>
             </div>
             <div id="message"></div>
-            <div id="stripeCardPanel" style="display:none;">
-                <strong>Secure Payment (Stripe)</strong>
-                <div id="card-element"></div>
-                <div id="card-errors"></div>
+            <div id="rideMap" class="map-container" style="display:none;"></div>
+            <div id="checkoutPanel" style="display:none; margin:1rem 0 0; text-align:left; border:1px solid #b8defa; border-radius:10px; background:#f8fcff; padding:0.75rem;">
+                <h3 style="margin:0 0 0.4rem;">Review your ride &amp; pay</h3>
+                <div id="orderSummary" style="font-size:0.88rem; color:#0f172a; margin-bottom:0.5rem;">
+                    <p style="margin:0;">Select a ride and tap <strong>Review Fare</strong> to see full details here before paying.</p>
+                </div>
+                <div>
+                    <h4 style="font-size:0.9rem; margin:0.4rem 0 0.3rem;">Payment method</h4>
+                    <div style="border:1px solid #cfdff0; border-radius:8px; padding:0.5rem 0.6rem; background:#ffffff;">
+                        <label style="display:flex; align-items:flex-start; gap:0.4rem; font-size:0.86rem;">
+                            <input type="radio" name="paymentMethod" checked disabled>
+                            <span>
+                                <strong>Card (Stripe Secure Checkout)</strong><br>
+                                <span style="color:#4f6d88;">We’ll charge your card safely using Stripe, similar to checking out on major e‑commerce apps.</span>
+                            </span>
+                        </label>
+                        <div id="stripeCardPanel" style="margin-top:0.5rem;">
+                            <div id="card-element"></div>
+                            <div id="card-errors"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="liveFeed"></div>
             <div id="results"></div>
             <div id="bookings"></div>
             <div id="paymentHistory"></div>
+            <div id="notificationHistory"></div>
+            <div id="driverFeedbackSection"></div>
         </section>
     </div>
 
@@ -247,11 +273,99 @@ const message = document.getElementById('message');
 const liveFeed = document.getElementById('liveFeed');
 const logoutBtn = document.getElementById('logoutBtn');
 const paymentHistory = document.getElementById('paymentHistory');
+const notificationHistory = document.getElementById('notificationHistory');
+const driverFeedbackSection = document.getElementById('driverFeedbackSection');
 const stripeCardPanel = document.getElementById('stripeCardPanel');
+const checkoutPanel = document.getElementById('checkoutPanel');
+const orderSummary = document.getElementById('orderSummary');
 const cardErrors = document.getElementById('card-errors');
+const passengerAccountBar = document.getElementById('passengerAccountBar');
+const passengerAccountName = document.getElementById('passengerAccountName');
+const passengerAccountRole = document.getElementById('passengerAccountRole');
+const passengerAccountEmail = document.getElementById('passengerAccountEmail');
+const passengerAccountPhone = document.getElementById('passengerAccountPhone');
+const themeToggle = document.getElementById('themeToggle');
+const rideMapEl = document.getElementById('rideMap');
+
+let mapsReady = false;
+let map;
+let directionsService;
+let directionsRenderer;
+
+const themeClasses = ['theme-dark', 'theme-green', 'theme-violet'];
+
+function applyTheme(themeClass) {
+    document.body.classList.remove(...themeClasses);
+    if (themeClass) {
+        document.body.classList.add(themeClass);
+    }
+}
+
+function themeLabel(themeClass) {
+    switch (themeClass) {
+        case 'theme-dark': return 'Dark';
+        case 'theme-green': return 'Green';
+        case 'theme-violet': return 'Purple';
+        default: return 'Default';
+    }
+}
+
+function nextTheme(current) {
+    const order = ['', 'theme-dark', 'theme-green', 'theme-violet'];
+    const idx = order.indexOf(current);
+    return order[(idx + 1) % order.length];
+}
+
+const storedTheme = localStorage.getItem('srTheme') || '';
+applyTheme(storedTheme);
+if (themeToggle) {
+    themeToggle.textContent = 'Theme: ' + themeLabel(storedTheme);
+    themeToggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        const active = themeClasses.find(c => document.body.classList.contains(c)) || '';
+        const next = nextTheme(active);
+        applyTheme(next);
+        localStorage.setItem('srTheme', next);
+        themeToggle.textContent = 'Theme: ' + themeLabel(next);
+    });
+}
 
 let stripeClient = null;
 let stripeCard = null;
+let selectedRideId = null;
+let selectedSeats = null;
+let selectedFare = null;
+let joinedRideIds = new Set();
+
+function initPassengerMap() {
+    try {
+        mapsReady = true;
+        map = new google.maps.Map(rideMapEl, {
+            zoom: 7,
+            center: { lat: 17.3850, lng: 78.4867 } // default to Hyderabad region
+        });
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({ map });
+    } catch (e) {
+        mapsReady = false;
+    }
+}
+
+function showRouteOnMap(origin, destination) {
+    if (!mapsReady || !origin || !destination || !rideMapEl) {
+        return;
+    }
+    rideMapEl.style.display = 'block';
+    directionsService.route({
+        origin,
+        destination,
+        travelMode: google.maps.TravelMode.DRIVING
+    }, function(result, status) {
+        if (status === google.maps.DirectionsStatus.OK) {
+            directionsRenderer.setDirections(result);
+        }
+    });
+}
 
 logoutBtn.addEventListener('click', function(e) {
     e.preventDefault();
@@ -276,6 +390,15 @@ async function loadPassengerProfile() {
         : 'Search rides below and book from this dashboard.';
 
     passengerSummary.innerHTML = `<p style="color:white; margin-top:0.75rem;">Welcome, ${user.name}. ${roleMessage}</p>`;
+
+    if (passengerAccountBar && user) {
+        passengerAccountBar.style.display = 'flex';
+        passengerAccountName.textContent = user.name || 'Passenger';
+        passengerAccountRole.textContent = user.role || 'USER';
+        passengerAccountEmail.textContent = user.email ? `Email: ${user.email}` : 'Email: not set';
+        passengerAccountPhone.textContent = user.phone ? `Phone: ${user.phone}` : 'Phone: not set';
+    }
+
     return user;
 }
 
@@ -291,6 +414,7 @@ async function loadBookings() {
     }
 
     const issuedAt = new Date().toLocaleString();
+    joinedRideIds = new Set(bookings.map(b => b.rideId));
     let html = '<h3>My Bookings</h3>';
     bookings.forEach(booking => {
         const ticketNo = `SR-${String(booking.id).padStart(5, '0')}-${String(booking.rideId).padStart(4, '0')}`;
@@ -350,13 +474,137 @@ async function loadPaymentHistory() {
 
     let html = '<h3>Transaction History</h3>';
     payments.forEach(p => {
+        const receipt = p.receiptUrl
+            ? `<a href="${p.receiptUrl}" target="_blank" rel="noopener">View receipt</a>`
+            : 'N/A';
         html += `<div style="border:1px solid #9fd0f8; padding:0.65rem; margin:0.45rem 0; border-radius:8px; text-align:left; background:#f8fcff;">
             <p><strong>${p.gateway}</strong> | ${p.status} | $${p.amount}</p>
             <p>Order: ${p.providerOrderId} | Payment: ${p.providerPaymentId}</p>
             <p>Ride: ${p.rideId} | Booking: ${p.bookingId}</p>
+            <p>Receipt: ${receipt}</p>
         </div>`;
     });
     paymentHistory.innerHTML = html;
+}
+
+async function loadNotifications() {
+    const resp = await fetch('/notifications/my', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        notificationHistory.innerHTML = '<h3>Notifications</h3><p>Unable to load notifications.</p>';
+        return;
+    }
+
+    const data = await resp.json();
+    const list = data.notifications || [];
+    if (list.length === 0) {
+        notificationHistory.innerHTML = '<h3>Notifications</h3><p>No notifications yet.</p>';
+        return;
+    }
+
+    let html = `<h3>Notifications (${data.unreadCount || 0} unread)</h3>`;
+    list.forEach(n => {
+        html += `<div style="border:1px solid #dbeaf9; border-radius:8px; padding:0.6rem; margin:0.45rem 0; background:${n.read ? '#f9fcff' : '#eef7ff'};">
+            <p><strong>${n.title}</strong> <span style="color:#6888a6;">[${n.type}]</span></p>
+            <p>${n.message}</p>
+            <button onclick="markNotificationRead(${n.id})" ${n.read ? 'disabled' : ''}>Mark read</button>
+        </div>`;
+    });
+    notificationHistory.innerHTML = html;
+}
+
+async function markNotificationRead(notificationId) {
+    const resp = await fetch(`/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (resp.ok) {
+        loadNotifications();
+    }
+}
+
+async function loadDriverFeedbackTargets() {
+    const resp = await fetch('/reviews/my/pending', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+        driverFeedbackSection.innerHTML = '<h3>Rate Driver Behavior</h3><p>Unable to load feedback options.</p>';
+        return;
+    }
+
+    const items = await resp.json();
+    const targets = items.filter(x => x.reviewerRole === 'PASSENGER');
+    if (targets.length === 0) {
+        driverFeedbackSection.innerHTML = '<h3>Rate Driver Behavior</h3><p>No completed rides pending your feedback.</p>';
+        return;
+    }
+
+    let html = '<h3>Rate Driver Behavior</h3>';
+    html += '<p style="color:#4f6d88; margin:0.35rem 0 0.6rem;">Tap an emoji to indicate how satisfied you are with the driver.</p>';
+    targets.forEach((t, idx) => {
+        html += `<div style="border:1px solid #d7e8f8; border-radius:10px; padding:0.75rem; margin:0.5rem 0; background:#fbfdff; text-align:left;">
+            <p><strong>${t.route}</strong></p>
+            <p>Driver: ${t.revieweeName}</p>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin:0.45rem 0;">
+                <button type="button" onclick="submitDriverFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 1)">😡 Very Bad</button>
+                <button type="button" onclick="submitDriverFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 2)">🙁 Bad</button>
+                <button type="button" onclick="submitDriverFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 3)">😐 Okay</button>
+                <button type="button" onclick="submitDriverFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 4)">🙂 Good</button>
+                <button type="button" onclick="submitDriverFeedback(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, 5)">😍 Excellent</button>
+            </div>
+            <textarea id="driver_feedback_comment_${idx}" rows="2" placeholder="Optional feedback on driver behavior"></textarea>
+            <button type="button" style="margin-top:0.45rem;" onclick="submitDriverFeedbackWithComment(${t.rideId}, ${t.revieweeId}, ${t.bookingId || 'null'}, ${idx})">Submit with comment</button>
+        </div>`;
+    });
+    driverFeedbackSection.innerHTML = html;
+}
+
+async function submitDriverFeedback(rideId, revieweeId, bookingId, stars) {
+    const resp = await fetch('/reviews/submit', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rideId, revieweeId, bookingId, stars, comments: '' })
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to submit driver feedback'}</p>`;
+        return;
+    }
+
+    message.innerHTML = '<p style="color:green;">Thanks. Your rating for the driver was submitted.</p>';
+    loadDriverFeedbackTargets();
+}
+
+async function submitDriverFeedbackWithComment(rideId, revieweeId, bookingId, idx) {
+    const comment = document.getElementById(`driver_feedback_comment_${idx}`).value.trim();
+    if (!comment) {
+        message.innerHTML = '<p style="color:red;">Please add a comment or use emoji-only feedback.</p>';
+        return;
+    }
+    const resp = await fetch('/reviews/submit', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rideId, revieweeId, bookingId, stars: 5, comments: comment })
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        message.innerHTML = `<p style="color:red;">${err || 'Unable to submit driver feedback'}</p>`;
+        return;
+    }
+
+    message.innerHTML = '<p style="color:green;">Thanks. Your detailed feedback for the driver was submitted.</p>';
+    loadDriverFeedbackTargets();
 }
 
 async function initStripe() {
@@ -367,12 +615,11 @@ async function initStripe() {
         if (!resp.ok) return; // silently skip — Stripe optional
 
         const config = await resp.json();
-        if (!config.stripeEnabled || !config.stripePublishableKey) return; // no Stripe keys — panel stays hidden
+        if (!config.stripeEnabled || !config.stripePublishableKey) return; // no Stripe keys — checkout stays in sandbox mode
 
         stripeClient = Stripe(config.stripePublishableKey);
         const elements = stripeClient.elements();
         stripeCard = elements.create('card', { hidePostalCode: true });
-        stripeCardPanel.style.display = 'block';
         stripeCard.mount('#card-element');
         stripeCard.on('change', function(event) {
             cardErrors.textContent = event.error ? event.error.message : '';
@@ -388,6 +635,9 @@ searchForm.addEventListener('submit', async function(e) {
     const destination = document.querySelector('input[name="destination"]').value;
     const date = document.querySelector('input[name="date"]').value;
 
+    // Show the route for this search on the embedded map (if Maps JS is configured)
+    showRouteOnMap(source, destination);
+
     const resp = await fetch(`/rides/match?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(date)}`, {
         headers: {
             'Authorization': 'Bearer ' + token
@@ -400,18 +650,35 @@ searchForm.addEventListener('submit', async function(e) {
         return;
     }
 
-    let html = '<h3>Available Rides</h3>';
+    function labelMatchType(raw) {
+        if (!raw) return 'Partial route';
+        if (raw === 'DIRECT') return 'Direct route';
+        if (raw === 'SAME_DEST_MID_ROUTE') return 'Same destination (mid-route pickup)';
+        return 'Partial route';
+    }
+
+    let html = '<h3>Browse Matching Rides</h3>';
     matches.forEach(match => {
         const ride = match.ride;
+        if (!ride) return;
+
+        // Skip rides that are already full
+        if (!ride.availableSeats || ride.availableSeats <= 0) {
+            return;
+        }
+
+        const alreadyJoined = joinedRideIds.has(ride.id);
         html += `<div style="border:1px solid #0066cc; padding:1rem; margin:0.5rem 0; border-radius:4px;">
             <p><strong>${ride.source} → ${ride.destination}</strong></p>
             <p>Date: ${ride.date} | Time: ${ride.time}</p>
             <p>Driver: ${ride.driverName} | Vehicle: ${ride.vehicleModel}</p>
-            <p>Match Type: <strong>${match.matchType}</strong> | Score: ${match.matchScore}</p>
+			<p>Match Type: <strong>${labelMatchType(match.matchType)}</strong> | Score: ${match.matchScore}</p>
             <p>Available Seats: ${ride.availableSeats} | Price/Seat: $${ride.pricePerSeat}</p>
-            <label>Seats to book: <input type="number" id="seats_${ride.id}" min="1" max="${ride.availableSeats}" value="1"></label>
-            <button type="button" onclick="previewFare(${ride.id})">Preview Fare</button>
-            <button type="button" onclick="bookRide(${ride.id})">Pay & Book (Stripe)</button>
+                <label>Seats to book: <input type="number" id="seats_${ride.id}" min="1" max="${ride.availableSeats}" value="1" ${alreadyJoined ? 'disabled' : ''}></label>
+                ${alreadyJoined
+				? `<p style="color:#059669; font-size:0.85rem; margin-top:0.35rem;"><strong>You have already joined this ride.</strong> Seats remaining for other passengers: ${ride.availableSeats}.</p>`
+				: `<button type="button" onclick="previewFare(${ride.id})">Review Fare</button>
+                         <button type="button" onclick="bookRide(${ride.id})">Place Order &amp; Pay</button>`}
         </div>`;
     });
 
@@ -435,29 +702,32 @@ async function previewFare(rideId) {
     }
 
     const fare = await resp.json();
-    message.innerHTML = `<p style="color:#004b8f;">Fare Estimate: Base $${fare.baseFare} + ($${fare.ratePerKm}/km × ${fare.distanceKm} km) = $${fare.fareBeforeSplit}. Shared by ${fare.sharedByPassengers} passenger(s). Your total: <strong>$${fare.totalFare}</strong>.</p>`;
+    selectedRideId = rideId;
+    selectedSeats = seats;
+    selectedFare = fare;
+
+    if (orderSummary) {
+        const text = `Base $${fare.baseFare} + ($${fare.ratePerKm}/km × ${fare.distanceKm} km) = $${fare.fareBeforeSplit}. ` +
+            `Shared by ${fare.sharedByPassengers} passenger(s). Your total: $${fare.totalFare} for ${seats} seat(s).`;
+        orderSummary.innerHTML = `
+            <p style="margin:0 0 0.3rem;"><strong>Selected ride:</strong> #${rideId} | Seats: ${seats}</p>
+            <p style="margin:0;">${text}</p>
+        `;
+    }
+
+    if (checkoutPanel) {
+        checkoutPanel.style.display = 'block';
+    }
+
+    message.innerHTML = '<p style="color:#004b8f;">Fare details updated below. Review your ride and then pay securely.</p>';
 }
 
 async function bookRide(rideId) {
     const seats = parseInt(document.getElementById('seats_' + rideId).value, 10);
     const source = document.querySelector('input[name="source"]').value;
     const destination = document.querySelector('input[name="destination"]').value;
-
-    let gateway = 'STRIPE';
-    let paymentToken = 'sandbox_token';
-
-    // If real Stripe is configured, collect a real card token
-    if (stripeClient && stripeCard) {
-        const pmResult = await stripeClient.createPaymentMethod({
-            type: 'card',
-            card: stripeCard
-        });
-        if (pmResult.error) {
-            message.innerHTML = `<p style="color:red;">${pmResult.error.message}</p>`;
-            return;
-        }
-        paymentToken = pmResult.paymentMethod.id;
-    }
+    const gateway = 'NONE';
+    const paymentToken = 'offline_demo';
 
     const resp = await fetch('/bookings/book-with-payment', {
         method: 'POST',
@@ -470,10 +740,18 @@ async function bookRide(rideId) {
 
     if (resp.ok) {
         const data = await resp.json();
-        const txRef = data.payment && data.payment.providerPaymentId ? ` | Ref: ${data.payment.providerPaymentId}` : '';
-        message.innerHTML = `<p style="color:green;">Booking confirmed! Total: $${data.booking.totalPrice}${txRef}</p>`;
+        message.innerHTML = `<p style="color:green;">Booking confirmed! Total: $${data.booking.totalPrice}</p>`;
         searchForm.reset();
         resultsContainer.innerHTML = '';
+        if (checkoutPanel) {
+            checkoutPanel.style.display = 'none';
+        }
+        if (stripeCard) {
+            try { stripeCard.clear(); } catch (_) { /* ignore */ }
+        }
+        selectedRideId = null;
+        selectedSeats = null;
+        selectedFare = null;
         loadBookings();
         loadPaymentHistory();
         return;
@@ -485,6 +763,9 @@ async function bookRide(rideId) {
 
 window.bookRide = bookRide;
 window.previewFare = previewFare;
+window.markNotificationRead = markNotificationRead;
+window.submitDriverFeedback = submitDriverFeedback;
+window.submitDriverFeedbackWithComment = submitDriverFeedbackWithComment;
 
 function connectRealtime() {
     const socket = new SockJS('/ws');
@@ -494,11 +775,13 @@ function connectRealtime() {
             const payload = JSON.parse(msg.body);
             liveFeed.innerHTML = `<div class="notif">Ride Update: ${payload.message}</div>` + liveFeed.innerHTML;
             loadBookings();
+            loadNotifications();
         });
 
         stompClient.subscribe('/topic/booking-updates', function(msg) {
             const payload = JSON.parse(msg.body);
             liveFeed.innerHTML = `<div class="notif">Booking Update: ${payload.message}</div>` + liveFeed.innerHTML;
+            loadNotifications();
         });
     });
 }
@@ -508,10 +791,15 @@ loadPassengerProfile().then(user => {
         initStripe();
         loadBookings();
         loadPaymentHistory();
+        loadNotifications();
+        loadDriverFeedbackTargets();
         connectRealtime();
     }
 });
     </script>
+    <script async
+            src="AIzaSyBivleWi6ubZ0T5sxltQySeMx5hGm-WaXs">
+    </script>
 </div>
 </body>
-</html>
+</html>y

@@ -9,6 +9,8 @@ import com.carpooling.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class BookingService {
     @Autowired
@@ -30,7 +32,7 @@ public class BookingService {
     private UserRepository userRepository;
 
     @Autowired
-    private EmailNotificationService emailNotificationService;
+    private NotificationService notificationService;
 
     public FareEstimate previewFare(Long rideId,
                                     String passengerSource,
@@ -43,7 +45,7 @@ public class BookingService {
 
         String source = isBlank(passengerSource) ? ride.getSource() : passengerSource;
         String destination = isBlank(passengerDestination) ? ride.getDestination() : passengerDestination;
-        int sharingCount = Math.max(ride.getAvailableSeats(), 1);
+        int sharingCount = getActivePassengerCount(rideId) + 1;
         return fareService.calculateFare(ride, source, destination, seats, sharingCount);
     }
 
@@ -73,7 +75,7 @@ public class BookingService {
 
         String source = isBlank(passengerSource) ? ride.getSource() : passengerSource;
         String destination = isBlank(passengerDestination) ? ride.getDestination() : passengerDestination;
-        int sharingCount = Math.max(ride.getAvailableSeats(), 1);
+        int sharingCount = getActivePassengerCount(rideId) + 1;
         FareEstimate fareEstimate = fareService.calculateFare(ride, source, destination, seats, sharingCount);
 
         Booking booking = new Booking();
@@ -88,6 +90,31 @@ public class BookingService {
         booking.setRatePerKm(fareEstimate.getRatePerKm());
         booking.setFareBeforeSplit(fareEstimate.getFareBeforeSplit());
         booking.setTotalPrice(fareEstimate.getTotalFare());
+
+        BookingPaymentResult result = new BookingPaymentResult();
+
+        // If gateway is NONE/OFFLINE, confirm booking without going through a payment provider.
+        if ("NONE".equalsIgnoreCase(gateway) || "OFFLINE".equalsIgnoreCase(gateway)) {
+            booking.setPaymentStatus("SKIPPED");
+            booking.setBookingStatus("CONFIRMED");
+            booking = bookingRepository.save(booking);
+
+            ride.setAvailableSeats(ride.getAvailableSeats() - seats);
+            rideService.save(ride);
+
+            User passenger = userRepository.findById(passengerId).orElse(null);
+            if (passenger != null) {
+                notificationService.notifyBookingConfirmation(passenger, booking);
+            }
+
+            realtimeEventService.notifyBookingUpdate(rideId, booking.getId(),
+                    "New booking received from " + passengerName + " for " + seats + " seat(s)");
+
+            result.setBooking(booking);
+            result.setPayment(null);
+            return result;
+        }
+
         booking.setBookingStatus("PENDING_PAYMENT");
         booking.setPaymentStatus("PENDING");
         booking = bookingRepository.save(booking);
@@ -124,12 +151,13 @@ public class BookingService {
         rideService.save(ride);
 
         User passenger = userRepository.findById(passengerId).orElse(null);
-        emailNotificationService.sendBookingConfirmationEmail(passenger, booking);
+        if (passenger != null) {
+            notificationService.notifyBookingConfirmation(passenger, booking);
+        }
 
         realtimeEventService.notifyBookingUpdate(rideId, booking.getId(),
                 "New booking received from " + passengerName + " for " + seats + " seat(s)");
 
-        BookingPaymentResult result = new BookingPaymentResult();
         result.setBooking(booking);
         result.setPayment(payment);
         return result;
@@ -137,5 +165,13 @@ public class BookingService {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private int getActivePassengerCount(Long rideId) {
+        long active = bookingRepository.countByRideIdAndBookingStatusIn(
+                rideId,
+                List.of("CONFIRMED", "PENDING_PAYMENT", "PENDING")
+        );
+        return (int) Math.max(active, 0);
     }
 }

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reviews & Ratings</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="container">
+    <header>
+        <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+            <span>&larr;</span>
+        </button>
+        <h1>Reviews & Ratings</h1>
+        <p>Rate your co-riders after completed trips.</p>
+    </header>
+
+    <nav>
+        <a href="/passenger-dashboard.html">Passenger Dashboard</a>
+        <a href="/driver-dashboard.html">Driver Dashboard</a>
+        <a href="#" id="logoutBtn">Logout</a>
+    </nav>
+
+    <h2>Pending Reviews</h2>
+    <div id="pendingReviews"></div>
+
+    <h2 style="margin-top:1.5rem;">Reviews Received</h2>
+    <div id="receivedReviews"></div>
+
+    <script>
+const token = localStorage.getItem('token');
+if (!token) {
+    window.location.href = '/login.html';
+}
+
+document.getElementById('logoutBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    window.location.href = '/login.html';
+});
+
+async function loadPending() {
+    const resp = await fetch('/reviews/my/pending', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('pendingReviews').innerHTML = '<p>Unable to load pending reviews.</p>';
+        return;
+    }
+
+    const items = await resp.json();
+    if (items.length === 0) {
+        document.getElementById('pendingReviews').innerHTML = '<p>No pending reviews. Great job keeping up.</p>';
+        return;
+    }
+
+    let html = '';
+    items.forEach((item, idx) => {
+        html += `<div style="border:1px solid #9fd0f8; border-radius:8px; padding:0.8rem; margin:0.6rem 0;">
+            <p><strong>${item.route}</strong></p>
+            <p>Ride ID: ${item.rideId} | Review: ${item.revieweeName} (User ${item.revieweeId})</p>
+            <label>Stars:
+                <select id="stars_${idx}">
+                    <option value="5">5</option>
+                    <option value="4">4</option>
+                    <option value="3">3</option>
+                    <option value="2">2</option>
+                    <option value="1">1</option>
+                </select>
+            </label>
+            <label>Comments:
+                <textarea id="comments_${idx}" rows="2" placeholder="Share your experience"></textarea>
+            </label>
+            <button onclick="submitReview(${item.rideId}, ${item.revieweeId}, ${idx})">Submit Review</button>
+        </div>`;
+    });
+    document.getElementById('pendingReviews').innerHTML = html;
+}
+
+async function submitReview(rideId, revieweeId, idx) {
+    const stars = parseInt(document.getElementById(`stars_${idx}`).value, 10);
+    const comments = document.getElementById(`comments_${idx}`).value;
+
+    const resp = await fetch('/reviews/submit', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ rideId, revieweeId, stars, comments })
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        alert(err || 'Unable to submit review');
+        return;
+    }
+
+    alert('Review submitted successfully');
+    loadPending();
+    loadReceived();
+}
+
+async function loadReceived() {
+    const resp = await fetch('/reviews/my/received', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) {
+        document.getElementById('receivedReviews').innerHTML = '<p>Unable to load received reviews.</p>';
+        return;
+    }
+
+    const reviews = await resp.json();
+    if (reviews.length === 0) {
+        document.getElementById('receivedReviews').innerHTML = '<p>No reviews received yet.</p>';
+        return;
+    }
+
+    let html = '';
+    reviews.forEach(r => {
+        html += `<div style="border:1px solid #d5e6f8; border-radius:8px; padding:0.7rem; margin:0.5rem 0; background:#f8fcff;">
+            <p><strong>${r.stars}/5</strong> | Ride ${r.rideId}</p>
+            <p>${r.comments || 'No comments provided.'}</p>
+        </div>`;
+    });
+    document.getElementById('receivedReviews').innerHTML = html;
+}
+
+window.submitReview = submitReview;
+loadPending();
+loadReceived();
+    </script>
+</div>
+</body>
+</html>

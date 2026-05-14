@@ -83,6 +83,36 @@ public class EmailNotificationService {
         return sendEmail(passenger.getEmail(), subject, body);
     }
 
+    public boolean sendRideReminderEmail(User passenger, Booking booking, String rideDate, String rideTime) {
+        if (passenger == null || passenger.getEmail() == null || passenger.getEmail().isBlank()) {
+            return false;
+        }
+        String subject = "Upcoming Ride Reminder";
+        String body = "Hi " + passenger.getName() + ",\n\n"
+                + "This is a reminder for your upcoming ride.\n"
+                + "Ride details:\n"
+                + "- Ride ID: " + booking.getRideId() + "\n"
+                + "- Date: " + rideDate + "\n"
+                + "- Time: " + rideTime + "\n"
+                + "- From: " + booking.getPassengerSource() + "\n"
+                + "- To: " + booking.getPassengerDestination() + "\n\n"
+                + "Please be ready a few minutes before departure.\n\n"
+                + "Regards,\nCarpooling Team";
+        return sendEmail(passenger.getEmail(), subject, body);
+    }
+
+    public boolean sendLoginNotificationEmail(User user) {
+        if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
+            return false;
+        }
+        String subject = "Login Alert - Smart Ride";
+        String body = "Hi " + user.getName() + ",\n\n"
+                + "Your Smart Ride account was just used to log in.\n"
+                + "If this was you, no further action is needed. If you did not log in, please secure your account immediately.\n\n"
+                + "Regards,\nCarpooling Team";
+        return sendEmail(user.getEmail(), subject, body);
+    }
+
     private boolean sendEmail(String to, String subject, String body) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();

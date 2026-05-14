@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Post a Ride</title>
     <link rel="stylesheet" href="/styles.css">
-    <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.12/dist/lottie-player.js"></script>
     <style>
         #postRideForm {
             max-width: 640px;
@@ -42,16 +41,6 @@
 <body>
 <div class="container">
     <h2>Post a New Ride</h2>
-    <div class="lottie-wrap">
-        <lottie-player
-            src="https://assets1.lottiefiles.com/packages/lf20_myejiggj.json"
-            background="transparent"
-            speed="1"
-            style="width: 180px; height: 180px;"
-            loop
-            autoplay>
-        </lottie-player>
-    </div>
     <form id="postRideForm">
         <label>Source: <input type="text" name="source" required></label>
         <label>Destination: <input type="text" name="destination" required></label>
@@ -62,58 +51,10 @@
         <button type="submit">Post Ride</button>
     </form>
     <div id="message"></div>
-    <hr>
-    <h3>Your Posted Rides</h3>
-    <div id="myRides"></div>
-    <script>
-const token = localStorage.getItem('token');
-if (!token) {
-    alert('Please login first');
-    window.location.href = '/login.html';
-}
-
-const form = document.getElementById('postRideForm');
-form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const data = {};
-    new FormData(form).forEach((value, key) => data[key] = value);
-    
-    const resp = await fetch('/rides/post', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify(data)
-    });
-    
-    if (resp.ok) {
-        document.getElementById('message').innerHTML = '<p style="color:green;">Ride posted successfully!</p>';
-        form.reset();
-        loadMyRides();
-    } else {
-        document.getElementById('message').innerHTML = '<p style="color:red;">Error posting ride</p>';
-    }
-});
-
-async function loadMyRides() {
-    const resp = await fetch('/rides/my-rides', {
-        headers: { 'Authorization': 'Bearer ' + token }
-    });
-    const rides = await resp.json();
-    let html = '';
-    rides.forEach(r => {
-        html += `<div style="border:1px solid #ccc; padding:1rem; margin:0.5rem 0;">
-            <p><strong>${r.source} → ${r.destination}</strong></p>
-            <p>Date: ${r.date} at ${r.time}</p>
-            <p>Available Seats: ${r.availableSeats} | Price/Seat: ${r.pricePerSeat}</p>
-        </div>`;
-    });
-    document.getElementById('myRides').innerHTML = html || '<p>No rides posted yet</p>';
-}
-
-loadMyRides();
-    </script>
 </div>
 </body>
 </html>
+
+        <button type="button" class="back-home-btn" onclick="window.location.href='/'">
+            <span>&larr;</span>
+        </button>

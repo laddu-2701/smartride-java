@@ -10,4 +10,6 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
     List<Ride> findByDriverId(Long driverId);
     List<Ride> findByDate(LocalDate date);
     List<Ride> findByDateAndStatus(LocalDate date, String status);
+    List<Ride> findByStatus(String status);
+    long countByStatus(String status);
 }

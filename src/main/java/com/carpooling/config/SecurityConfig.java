@@ -29,9 +29,10 @@ public class SecurityConfig {
     @Order(0)
     public SecurityFilterChain staticResourcesFilterChain(HttpSecurity http) throws Exception {
         http
-            .securityMatcher("/", "/index.html", "/login.html", "/register.html", "/search-rides.html", 
-                            "/post-ride.html", "/my-bookings.html", "/driver-dashboard.html", "/passenger-dashboard.html",
-                            "/styles.css", "/favicon.ico", "/ws/**")
+            .securityMatcher("/", "/index.html", "/login.html", "/register.html", "/search-rides.html",
+                             "/post-ride.html", "/my-bookings.html", "/driver-dashboard.html", "/passenger-dashboard.html",
+                             "/dashboard.html", "/reviews.html", "/admin-dashboard.html",
+                             "/styles.css", "/favicon.ico", "/ws/**")
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
             .csrf(csrf -> csrf.disable());
         return http.build();
@@ -46,8 +47,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**", "/test", "/ws/**", "/payments/webhook").permitAll()
-                .anyRequest().authenticated())
-            .headers(headers -> headers.xssProtection().disable());
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .anyRequest().authenticated());
 
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -60,17 +61,15 @@ public class SecurityConfig {
             .securityMatcher("/h2-console/**")
             .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
             .csrf(csrf -> csrf.disable())
-            .headers(headers -> headers.frameOptions().disable());
+                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
         return http.build();
         }
 
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-        return http.getSharedObject(AuthenticationManagerBuilder.class)
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder())
-                .and()
-                .build();
+        AuthenticationManagerBuilder authBuilder = http.getSharedObject(AuthenticationManagerBuilder.class);
+        authBuilder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
+        return authBuilder.build();
     }
 
     @Bean

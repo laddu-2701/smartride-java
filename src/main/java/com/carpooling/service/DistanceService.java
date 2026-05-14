@@ -15,7 +15,6 @@ public class DistanceService {
     @Value("${maps.distance.api.key:}")
     private String mapsApiKey;
 
-    @SuppressWarnings("unchecked")
     public double calculateDistanceKm(String source, String destination) {
         Double apiDistance = fetchDistanceFromGoogle(source, destination);
         if (apiDistance != null && apiDistance > 0) {
@@ -39,8 +38,8 @@ public class DistanceService {
                     + destination.replace(" ", "%20")
                     + "&key=" + mapsApiKey;
             RestTemplate restTemplate = new RestTemplate();
-            Map<String, Object> json = restTemplate.getForObject(url, Map.class);
-            if (json == null) {
+            Object response = restTemplate.getForObject(url, Object.class);
+            if (!(response instanceof Map<?, ?> json)) {
                 return null;
             }
             Object rowsObj = json.get("rows");
@@ -83,6 +82,9 @@ public class DistanceService {
         coords.put("madhapur", new double[]{17.4483, 78.3915});
         coords.put("begumpet", new double[]{17.4435, 78.4691});
         coords.put("uppal", new double[]{17.4058, 78.5591});
+        // Additional Telangana towns used in demo routes
+        coords.put("siddipet", new double[]{18.1018, 78.8486});
+        coords.put("jagtial", new double[]{18.7946, 78.9120});
 
         double[] s = lookupCoords(source, coords);
         double[] d = lookupCoords(destination, coords);
