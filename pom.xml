@@ -57,6 +57,12 @@
             <artifactId>stripe-java</artifactId>
             <version>24.18.0</version>
         </dependency>
+        <!-- Razorpay payment SDK -->
+        <dependency>
+            <groupId>com.razorpay</groupId>
+            <artifactId>razorpay-java</artifactId>
+            <version>1.4.8</version>
+        </dependency>
         <!-- JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

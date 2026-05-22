@@ -39,7 +39,7 @@ public class BookingService {
                                     String passengerDestination,
                                     int seats) {
         Ride ride = rideService.findById(rideId);
-        if (ride == null || ride.getAvailableSeats() < seats || seats <= 0) {
+        if (ride == null || getEffectiveAvailableSeats(rideId, ride) < seats || seats <= 0) {
             throw new IllegalArgumentException("Ride unavailable or invalid seats");
         }
 
@@ -69,7 +69,7 @@ public class BookingService {
         if (!"SCHEDULED".equalsIgnoreCase(ride.getStatus())) {
             throw new IllegalStateException("Ride is not available for booking");
         }
-        if (seats <= 0 || ride.getAvailableSeats() < seats) {
+        if (seats <= 0 || getEffectiveAvailableSeats(rideId, ride) < seats) {
             throw new IllegalArgumentException("Invalid seat count");
         }
 
@@ -139,6 +139,15 @@ public class BookingService {
 
         booking.setPaymentStatus(payment.getStatus());
         booking.setPaymentTransactionId(payment.getId());
+
+        if ("RAZORPAY".equalsIgnoreCase(payment.getGateway()) && "PENDING".equalsIgnoreCase(payment.getStatus())) {
+            booking.setBookingStatus("PAYMENT_PENDING");
+            bookingRepository.save(booking);
+            result.setBooking(booking);
+            result.setPayment(payment);
+            return result;
+        }
+
         if (!"PAID".equalsIgnoreCase(payment.getStatus())) {
             booking.setBookingStatus("PAYMENT_PENDING");
             bookingRepository.save(booking);
@@ -163,6 +172,47 @@ public class BookingService {
         return result;
     }
 
+    public BookingPaymentResult confirmRazorpayBooking(Long bookingId,
+                                                       String razorpayOrderId,
+                                                       String razorpayPaymentId,
+                                                       String razorpaySignature) {
+        PaymentTransaction payment = paymentService.verifyRazorpayPayment(
+                String.valueOf(bookingId),
+                razorpayOrderId,
+                razorpayPaymentId,
+                razorpaySignature
+        );
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalArgumentException("Booking not found"));
+
+        if (!"CONFIRMED".equalsIgnoreCase(booking.getBookingStatus())) {
+            booking.setPaymentTransactionId(payment.getId());
+            booking.setPaymentStatus(payment.getStatus());
+            booking.setBookingStatus("CONFIRMED");
+            bookingRepository.save(booking);
+
+            Ride ride = rideService.findById(booking.getRideId());
+            if (ride != null) {
+                ride.setAvailableSeats(Math.max(0, ride.getAvailableSeats() - booking.getSeatsBooked()));
+                rideService.save(ride);
+            }
+
+            User passenger = userRepository.findById(booking.getPassengerId()).orElse(null);
+            if (passenger != null) {
+                notificationService.notifyBookingConfirmation(passenger, booking);
+            }
+
+            realtimeEventService.notifyBookingUpdate(booking.getRideId(), booking.getId(),
+                    "Payment confirmed for booking " + booking.getId());
+        }
+
+        BookingPaymentResult result = new BookingPaymentResult();
+        result.setBooking(booking);
+        result.setPayment(payment);
+        return result;
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
@@ -173,5 +223,13 @@ public class BookingService {
                 List.of("CONFIRMED", "PENDING_PAYMENT", "PENDING")
         );
         return (int) Math.max(active, 0);
+    }
+
+    private int getEffectiveAvailableSeats(Long rideId, Ride ride) {
+        long pendingReservations = bookingRepository.sumSeatsBookedByRideIdAndBookingStatusIn(
+                rideId,
+                List.of("PENDING_PAYMENT", "PENDING")
+        );
+        return (int) Math.max(ride.getAvailableSeats() - pendingReservations, 0);
     }
 }

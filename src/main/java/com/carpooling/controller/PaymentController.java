@@ -1,6 +1,8 @@
 package com.carpooling.controller;
 
 import com.carpooling.model.PaymentTransaction;
+import com.carpooling.service.BookingPaymentResult;
+import com.carpooling.service.BookingService;
 import com.carpooling.service.CustomUserDetails;
 import com.carpooling.service.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +24,9 @@ public class PaymentController {
     @Autowired
     private PaymentService paymentService;
 
+    @Autowired
+    private BookingService bookingService;
+
     @GetMapping("/my-transactions")
     public List<PaymentTransaction> myTransactions(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return paymentService.getPassengerTransactions(userDetails.getUser().getId());
@@ -37,6 +42,9 @@ public class PaymentController {
         Map<String, Object> response = new HashMap<>();
         response.put("stripeEnabled", paymentService.isStripeEnabled());
         response.put("stripePublishableKey", paymentService.getStripePublishableKey());
+        response.put("razorpayEnabled", paymentService.isRazorpayEnabled());
+        response.put("razorpayKeyId", paymentService.getRazorpayKeyId());
+        response.put("razorpayCurrency", paymentService.getRazorpayCurrency());
         return response;
     }
 
@@ -48,5 +56,14 @@ public class PaymentController {
         }
         paymentService.handleWebhook(payload, signature);
         return Map.of("status", "ok");
+    }
+
+    @PostMapping("/razorpay/confirm")
+    public BookingPaymentResult razorpayConfirm(@RequestBody Map<String, Object> body) {
+        Long bookingId = Long.parseLong(String.valueOf(body.get("bookingId")));
+        String orderId = String.valueOf(body.get("razorpay_order_id"));
+        String paymentId = String.valueOf(body.get("razorpay_payment_id"));
+        String signature = String.valueOf(body.get("razorpay_signature"));
+        return bookingService.confirmRazorpayBooking(bookingId, orderId, paymentId, signature);
     }
 }

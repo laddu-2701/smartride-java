@@ -2,6 +2,10 @@ package com.carpooling.service;
 
 import com.carpooling.model.PaymentTransaction;
 import com.carpooling.repository.PaymentTransactionRepository;
+import com.razorpay.Order;
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
+import com.razorpay.Utils;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.exception.SignatureVerificationException;
@@ -10,6 +14,7 @@ import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
 import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCreateParams;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -32,6 +37,18 @@ public class PaymentService {
     @Value("${stripe.webhook.secret:}")
     private String stripeWebhookSecret;
 
+    @Value("${razorpay.key.id:}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret:}")
+    private String razorpayKeySecret;
+
+    @Value("${razorpay.webhook.secret:}")
+    private String razorpayWebhookSecret;
+
+    @Value("${razorpay.currency:INR}")
+    private String razorpayCurrency;
+
     public PaymentTransaction chargeBooking(Long bookingId,
                                             Long rideId,
                                             Long passengerId,
@@ -40,51 +57,78 @@ public class PaymentService {
                                             String gateway,
                                             String paymentToken) {
         String normalizedGateway = normalizeGateway(gateway);
-        if (paymentToken == null || paymentToken.trim().length() < 6) {
-            throw new IllegalArgumentException("Invalid payment token");
+
+        if ("STRIPE".equals(normalizedGateway)) {
+            if (paymentToken == null || paymentToken.trim().length() < 6) {
+                throw new IllegalArgumentException("Invalid payment token");
+            }
+            return chargeWithStripe(bookingId, rideId, passengerId, driverId, amount, paymentToken);
         }
 
-        if (!"STRIPE".equals(normalizedGateway)) {
-            throw new IllegalArgumentException("This environment currently supports real STRIPE payments only");
+        if ("RAZORPAY".equals(normalizedGateway)) {
+            return chargeWithRazorpay(bookingId, rideId, passengerId, driverId, amount);
         }
 
-        // Sandbox / demo mode: when no real Stripe keys are present, simulate a successful payment
-        if (stripeSecretKey == null || stripeSecretKey.isBlank()) {
-            PaymentTransaction sandboxTx = new PaymentTransaction();
-            sandboxTx.setBookingId(bookingId);
-            sandboxTx.setRideId(rideId);
-            sandboxTx.setPassengerId(passengerId);
-            sandboxTx.setDriverId(driverId);
-            sandboxTx.setAmount(round(amount));
-            sandboxTx.setCurrency("USD");
-            sandboxTx.setGateway("STRIPE");
-            sandboxTx.setProviderOrderId("sandbox_order_" + bookingId);
-            sandboxTx.setProviderPaymentId("sandbox_payment_" + bookingId);
-            sandboxTx.setStatus("PAID");
-            sandboxTx.setPayoutStatus("HELD");
-            sandboxTx.setPaidAt(LocalDateTime.now());
-            return paymentTransactionRepository.save(sandboxTx);
+        throw new IllegalArgumentException("Unsupported gateway. Use STRIPE or RAZORPAY");
+    }
+
+    public boolean isRazorpayEnabled() {
+        return razorpayKeyId != null && !razorpayKeyId.isBlank()
+                && razorpayKeySecret != null && !razorpayKeySecret.isBlank();
+    }
+
+    public String getRazorpayKeyId() {
+        return razorpayKeyId == null ? "" : razorpayKeyId;
+    }
+
+    public String getRazorpayCurrency() {
+        return razorpayCurrency == null || razorpayCurrency.isBlank()
+                ? "INR"
+                : razorpayCurrency.trim().toUpperCase(Locale.ROOT);
+    }
+
+    public PaymentTransaction verifyRazorpayPayment(String bookingId,
+                                                    String razorpayOrderId,
+                                                    String razorpayPaymentId,
+                                                    String razorpaySignature) {
+        if (razorpayOrderId == null || razorpayOrderId.isBlank()
+                || razorpayPaymentId == null || razorpayPaymentId.isBlank()
+                || razorpaySignature == null || razorpaySignature.isBlank()) {
+            throw new IllegalArgumentException("Missing Razorpay payment details");
         }
 
-        Stripe.apiKey = stripeSecretKey;
-        PaymentIntent intent = createAndConfirmPaymentIntent(amount, paymentToken, bookingId, rideId, passengerId, driverId);
+        PaymentTransaction transaction = paymentTransactionRepository.findFirstByProviderOrderId(razorpayOrderId);
+        if (transaction == null) {
+            throw new IllegalArgumentException("Payment transaction not found for Razorpay order");
+        }
+        if (!"RAZORPAY".equalsIgnoreCase(transaction.getGateway())) {
+            throw new IllegalArgumentException("Payment transaction is not a Razorpay payment");
+        }
 
-        PaymentTransaction transaction = new PaymentTransaction();
-        transaction.setBookingId(bookingId);
-        transaction.setRideId(rideId);
-        transaction.setPassengerId(passengerId);
-        transaction.setDriverId(driverId);
-        transaction.setAmount(round(amount));
-        transaction.setCurrency("USD");
-        transaction.setGateway(normalizedGateway);
-        transaction.setProviderOrderId(intent.getId());
-        transaction.setProviderPaymentId(intent.getLatestCharge());
-        transaction.setStatus(mapStripeStatus(intent.getStatus()));
-        transaction.setPayoutStatus("HELD");
-        if ("PAID".equals(transaction.getStatus())) {
+        if (isRazorpaySandbox()) {
+            transaction.setProviderPaymentId(razorpayPaymentId);
+            transaction.setStatus("PAID");
             transaction.setPaidAt(LocalDateTime.now());
+            return paymentTransactionRepository.save(transaction);
         }
-        transaction.setReceiptUrl(resolveReceiptUrl(intent));
+
+        JSONObject attributes = new JSONObject();
+        attributes.put("razorpay_order_id", razorpayOrderId);
+        attributes.put("razorpay_payment_id", razorpayPaymentId);
+        attributes.put("razorpay_signature", razorpaySignature);
+
+        try {
+            boolean valid = Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
+            if (!valid) {
+                throw new IllegalArgumentException("Invalid Razorpay signature");
+            }
+        } catch (RazorpayException e) {
+            throw new IllegalArgumentException("Invalid Razorpay signature");
+        }
+
+        transaction.setProviderPaymentId(razorpayPaymentId);
+        transaction.setStatus("PAID");
+        transaction.setPaidAt(LocalDateTime.now());
         return paymentTransactionRepository.save(transaction);
     }
 
@@ -146,6 +190,112 @@ public class PaymentService {
 
     public List<PaymentTransaction> getDriverTransactions(Long driverId) {
         return paymentTransactionRepository.findByDriverIdOrderByCreatedAtDesc(driverId);
+    }
+
+    private PaymentTransaction chargeWithStripe(Long bookingId,
+                                                Long rideId,
+                                                Long passengerId,
+                                                Long driverId,
+                                                double amount,
+                                                String paymentToken) {
+        // Sandbox / demo mode: when no real Stripe keys are present, simulate a successful payment
+        if (stripeSecretKey == null || stripeSecretKey.isBlank()) {
+            PaymentTransaction sandboxTx = new PaymentTransaction();
+            sandboxTx.setBookingId(bookingId);
+            sandboxTx.setRideId(rideId);
+            sandboxTx.setPassengerId(passengerId);
+            sandboxTx.setDriverId(driverId);
+            sandboxTx.setAmount(round(amount));
+            sandboxTx.setCurrency("USD");
+            sandboxTx.setGateway("STRIPE");
+            sandboxTx.setProviderOrderId("sandbox_order_" + bookingId);
+            sandboxTx.setProviderPaymentId("sandbox_payment_" + bookingId);
+            sandboxTx.setStatus("PAID");
+            sandboxTx.setPayoutStatus("HELD");
+            sandboxTx.setPaidAt(LocalDateTime.now());
+            return paymentTransactionRepository.save(sandboxTx);
+        }
+
+        Stripe.apiKey = stripeSecretKey;
+        PaymentIntent intent = createAndConfirmPaymentIntent(amount, paymentToken, bookingId, rideId, passengerId, driverId);
+
+        PaymentTransaction transaction = new PaymentTransaction();
+        transaction.setBookingId(bookingId);
+        transaction.setRideId(rideId);
+        transaction.setPassengerId(passengerId);
+        transaction.setDriverId(driverId);
+        transaction.setAmount(round(amount));
+        transaction.setCurrency("USD");
+        transaction.setGateway("STRIPE");
+        transaction.setProviderOrderId(intent.getId());
+        transaction.setProviderPaymentId(intent.getLatestCharge());
+        transaction.setStatus(mapStripeStatus(intent.getStatus()));
+        transaction.setPayoutStatus("HELD");
+        if ("PAID".equals(transaction.getStatus())) {
+            transaction.setPaidAt(LocalDateTime.now());
+        }
+        transaction.setReceiptUrl(resolveReceiptUrl(intent));
+        return paymentTransactionRepository.save(transaction);
+    }
+
+    private PaymentTransaction chargeWithRazorpay(Long bookingId,
+                                                  Long rideId,
+                                                  Long passengerId,
+                                                  Long driverId,
+                                                  double amount) {
+        if (isRazorpaySandbox()) {
+            PaymentTransaction sandboxTx = new PaymentTransaction();
+            sandboxTx.setBookingId(bookingId);
+            sandboxTx.setRideId(rideId);
+            sandboxTx.setPassengerId(passengerId);
+            sandboxTx.setDriverId(driverId);
+            sandboxTx.setAmount(round(amount));
+            sandboxTx.setCurrency(getRazorpayCurrency());
+            sandboxTx.setGateway("RAZORPAY");
+            sandboxTx.setProviderOrderId("sandbox_razorpay_order_" + bookingId);
+            sandboxTx.setProviderPaymentId("sandbox_razorpay_payment_" + bookingId);
+            sandboxTx.setStatus("PAID");
+            sandboxTx.setPayoutStatus("HELD");
+            sandboxTx.setPaidAt(LocalDateTime.now());
+            return paymentTransactionRepository.save(sandboxTx);
+        }
+
+        try {
+            RazorpayClient client = new RazorpayClient(razorpayKeyId, razorpayKeySecret);
+            JSONObject request = new JSONObject();
+            request.put("amount", Math.max(100L, Math.round(round(amount) * 100)));
+            request.put("currency", getRazorpayCurrency());
+            request.put("receipt", "booking_" + bookingId);
+            request.put("payment_capture", 1);
+
+            JSONObject notes = new JSONObject();
+            notes.put("bookingId", bookingId);
+            notes.put("rideId", rideId);
+            notes.put("passengerId", passengerId);
+            notes.put("driverId", driverId);
+            request.put("notes", notes);
+
+            Order order = client.orders.create(request);
+
+            PaymentTransaction transaction = new PaymentTransaction();
+            transaction.setBookingId(bookingId);
+            transaction.setRideId(rideId);
+            transaction.setPassengerId(passengerId);
+            transaction.setDriverId(driverId);
+            transaction.setAmount(round(amount));
+            transaction.setCurrency(getRazorpayCurrency());
+            transaction.setGateway("RAZORPAY");
+            transaction.setProviderOrderId(String.valueOf(order.get("id")));
+            transaction.setStatus("PENDING");
+            transaction.setPayoutStatus("HELD");
+            return paymentTransactionRepository.save(transaction);
+        } catch (Exception e) {
+            throw new IllegalStateException("Razorpay order creation failed: " + e.getMessage(), e);
+        }
+    }
+
+    private boolean isRazorpaySandbox() {
+        return !isRazorpayEnabled();
     }
 
     private String normalizeGateway(String gateway) {
