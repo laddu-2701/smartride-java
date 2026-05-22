@@ -802,7 +802,7 @@ async function bookRide(rideId) {
     const seats = parseInt(document.getElementById('seats_' + rideId).value, 10);
     const source = document.querySelector('input[name="source"]').value;
     const destination = document.querySelector('input[name="destination"]').value;
-    const gateway = paymentConfig.razorpayEnabled ? 'RAZORPAY' : 'NONE';
+    const gateway = 'RAZORPAY';
     const paymentToken = '';
 
     const resp = await fetch('/bookings/book-with-payment', {
