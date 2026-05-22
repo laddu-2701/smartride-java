@@ -56,6 +56,11 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Required fields missing");
         }
 
+        // password policy: at least one uppercase letter and at least one digit
+        if (!rawPassword.matches("(?=.*[A-Z])(?=.*\\d).+")) {
+            return ResponseEntity.badRequest().body("Password must contain at least one uppercase letter and one digit");
+        }
+
         Role role;
         try {
             role = Role.valueOf(roleStr);

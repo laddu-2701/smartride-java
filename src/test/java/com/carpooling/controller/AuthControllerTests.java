@@ -42,7 +42,7 @@ public class AuthControllerTests {
         user.put("name", "Test User");
         user.put("email", "test@example.com");
         user.put("phone", "1234567890");
-        user.put("password", "password");
+        user.put("password", "Password1");
         user.put("role", "PASSENGER");
     }
 
@@ -61,7 +61,7 @@ public class AuthControllerTests {
         // login
         Map<String, String> creds = new HashMap<>();
         creds.put("username", "test@example.com");
-        creds.put("password", "password");
+        creds.put("password", "Password1");
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
