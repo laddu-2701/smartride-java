@@ -5,6 +5,7 @@
     <title>Search & Book Rides</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 <div class="container">
@@ -42,10 +43,10 @@
             <p style="font-size:0.82rem; margin:0 0 0.3rem;"><strong>Payment method</strong></p>
             <label style="display:block; font-size:0.82rem; margin-bottom:0.25rem;">
                 <input type="radio" name="paymentMethod" checked disabled>
-                Card (Stripe Secure Checkout)
+                Razorpay Secure Checkout
             </label>
             <p style="font-size:0.78rem; color:#6b7280; margin:0 0 0.3rem;">
-                Other options like UPI / Wallets can be added later. For now, pay safely with your card.
+                Pay safely with UPI, cards, wallets, or netbanking through Razorpay.
             </p>
             <div id="stripeCardPanel" style="margin-top:0.4rem;">
                 <div id="card-element" style="background:#fff; border:1px solid #cfdff0; border-radius:8px; padding:0.65rem;"></div>
@@ -62,6 +63,13 @@ let selectedRideId = null;
 let selectedSeats = null;
 let selectedFare = null;
 let joinedRideIds = new Set();
+let paymentConfig = {
+    stripeEnabled: false,
+    stripePublishableKey: '',
+    razorpayEnabled: false,
+    razorpayKeyId: '',
+    razorpayCurrency: 'INR'
+};
 if (!token) {
     alert('Please login first');
     window.location.href = '/login.html';
@@ -79,13 +87,13 @@ async function initStripe() {
         return; // silently hide — Stripe is optional
     }
 
-    const config = await resp.json();
-    if (!config.stripeEnabled || !config.stripePublishableKey) {
+    paymentConfig = await resp.json();
+    if (!paymentConfig.stripeEnabled || !paymentConfig.stripePublishableKey) {
         document.getElementById('checkoutPanel').style.display = 'none';
         return; // Stripe optional — hide panel, booking still works in sandbox mode
     }
 
-    stripeClient = Stripe(config.stripePublishableKey);
+    stripeClient = Stripe(paymentConfig.stripePublishableKey);
     const elements = stripeClient.elements();
     stripeCard = elements.create('card', { hidePostalCode: true });
     stripeCard.mount('#card-element');
@@ -95,6 +103,70 @@ async function initStripe() {
 }
 
 initStripe();
+
+async function openRazorpayCheckout(data) {
+    if (typeof Razorpay === 'undefined') {
+        throw new Error('Razorpay checkout script is not loaded');
+    }
+
+    const payment = data.payment;
+    const booking = data.booking;
+    const amountInPaise = Math.max(100, Math.round(Number(payment.amount || booking.totalPrice || 0) * 100));
+
+    return new Promise((resolve, reject) => {
+        const options = {
+            key: paymentConfig.razorpayKeyId,
+            amount: amountInPaise,
+            currency: payment.currency || paymentConfig.razorpayCurrency || 'INR',
+            name: 'SmartRide',
+            description: `Ride booking #${booking.id}`,
+            order_id: payment.providerOrderId,
+            handler: async function (response) {
+                try {
+                    const confirmResp = await fetch('/payments/razorpay/confirm', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify({
+                            bookingId: booking.id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                    });
+
+                    if (!confirmResp.ok) {
+                        const err = await confirmResp.text();
+                        throw new Error(err || 'Unable to confirm Razorpay payment');
+                    }
+
+                    document.getElementById('checkoutPanel').style.display = 'none';
+                    alert('Razorpay payment confirmed and booking completed.');
+                    await loadJoinedRides();
+                    await performSearch();
+                    resolve(await confirmResp.json());
+                } catch (err) {
+                    reject(err);
+                }
+            },
+            modal: {
+                ondismiss: function () {
+                    resolve(null);
+                }
+            },
+            theme: { color: '#0b66c3' }
+        };
+
+        const razorpay = new Razorpay(options);
+        razorpay.on('payment.failed', function (response) {
+            const reason = response && response.error && response.error.description ? response.error.description : 'Razorpay payment failed';
+            reject(new Error(reason));
+        });
+        razorpay.open();
+    });
+}
 
 async function loadJoinedRides() {
     try {
@@ -235,8 +307,8 @@ async function bookRide(rideId) {
     const seats = parseInt(document.getElementById('seats_' + rideId).value);
     const source = document.querySelector('input[name="source"]').value;
     const destination = document.querySelector('input[name="destination"]').value;
-    const gateway = 'NONE';
-    const paymentToken = 'offline_demo';
+    const gateway = paymentConfig.razorpayEnabled ? 'RAZORPAY' : 'NONE';
+    const paymentToken = '';
     const resp = await fetch('/bookings/book-with-payment', {
         method: 'POST',
         headers: {
@@ -248,13 +320,17 @@ async function bookRide(rideId) {
     
     if (resp.ok) {
         const data = await resp.json();
-        alert(`Booking confirmed! Total fare: $${data.booking.totalPrice}`);
-        await loadJoinedRides();
-        await performSearch();
-        document.getElementById('checkoutPanel').style.display = 'none';
-        selectedRideId = null;
-        selectedSeats = null;
-        selectedFare = null;
+        if (data.payment && data.payment.gateway === 'RAZORPAY' && data.payment.status === 'PENDING') {
+            await openRazorpayCheckout(data);
+        } else {
+            alert(`Booking confirmed! Total fare: $${data.booking.totalPrice}`);
+            await loadJoinedRides();
+            await performSearch();
+            document.getElementById('checkoutPanel').style.display = 'none';
+            selectedRideId = null;
+            selectedSeats = null;
+            selectedFare = null;
+        }
     } else {
         const err = await resp.text();
         alert(err || 'Booking failed');

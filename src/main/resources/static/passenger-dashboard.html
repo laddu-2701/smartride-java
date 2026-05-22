@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/styles.css">
     <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.12/dist/lottie-player.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
     <style>
@@ -236,11 +237,11 @@
                     <h4 style="font-size:0.9rem; margin:0.4rem 0 0.3rem;">Payment method</h4>
                     <div style="border:1px solid #cfdff0; border-radius:8px; padding:0.5rem 0.6rem; background:#ffffff;">
                         <label style="display:flex; align-items:flex-start; gap:0.4rem; font-size:0.86rem;">
-                            <input type="radio" name="paymentMethod" checked disabled>
-                            <span>
-                                <strong>Card (Stripe Secure Checkout)</strong><br>
-                                <span style="color:#4f6d88;">We’ll charge your card safely using Stripe, similar to checking out on major e‑commerce apps.</span>
-                            </span>
+                                <input type="radio" name="paymentMethod" checked disabled>
+                                <span>
+                                    <strong>Razorpay Secure Checkout</strong><br>
+                                    <span style="color:#4f6d88;">Pay with UPI, cards, wallets, or netbanking through Razorpay.</span>
+                                </span>
                         </label>
                         <div id="stripeCardPanel" style="margin-top:0.5rem;">
                             <div id="card-element"></div>
@@ -336,6 +337,13 @@ let selectedRideId = null;
 let selectedSeats = null;
 let selectedFare = null;
 let joinedRideIds = new Set();
+let paymentConfig = {
+    stripeEnabled: false,
+    stripePublishableKey: '',
+    razorpayEnabled: false,
+    razorpayKeyId: '',
+    razorpayCurrency: 'INR'
+};
 
 function initPassengerMap() {
     try {
@@ -614,10 +622,10 @@ async function initStripe() {
         });
         if (!resp.ok) return; // silently skip — Stripe optional
 
-        const config = await resp.json();
-        if (!config.stripeEnabled || !config.stripePublishableKey) return; // no Stripe keys — checkout stays in sandbox mode
+        paymentConfig = await resp.json();
+        if (!paymentConfig.stripeEnabled || !paymentConfig.stripePublishableKey) return; // no Stripe keys — checkout stays in sandbox mode
 
-        stripeClient = Stripe(config.stripePublishableKey);
+        stripeClient = Stripe(paymentConfig.stripePublishableKey);
         const elements = stripeClient.elements();
         stripeCard = elements.create('card', { hidePostalCode: true });
         stripeCard.mount('#card-element');
@@ -627,6 +635,86 @@ async function initStripe() {
     } catch (_) {
         // Stripe unavailable — continue without payment UI
     }
+}
+
+async function openRazorpayCheckout(data) {
+    if (typeof Razorpay === 'undefined') {
+        throw new Error('Razorpay checkout script is not loaded');
+    }
+
+    const payment = data.payment;
+    const booking = data.booking;
+    const amountInPaise = Math.max(100, Math.round(Number(payment.amount || booking.totalPrice || 0) * 100));
+
+    return new Promise((resolve, reject) => {
+        const options = {
+            key: paymentConfig.razorpayKeyId,
+            amount: amountInPaise,
+            currency: payment.currency || paymentConfig.razorpayCurrency || 'INR',
+            name: 'SmartRide',
+            description: `Ride booking #${booking.id}`,
+            order_id: payment.providerOrderId,
+            handler: async function (response) {
+                try {
+                    const confirmResp = await fetch('/payments/razorpay/confirm', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify({
+                            bookingId: booking.id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature
+                        })
+                    });
+
+                    if (!confirmResp.ok) {
+                        const err = await confirmResp.text();
+                        throw new Error(err || 'Unable to confirm Razorpay payment');
+                    }
+
+                    const confirmed = await confirmResp.json();
+                    message.innerHTML = `<p style="color:green;">Payment confirmed! Booking #${confirmed.booking.id} is now confirmed.</p>`;
+                    if (checkoutPanel) {
+                        checkoutPanel.style.display = 'none';
+                    }
+                    await loadBookings();
+                    await loadPaymentHistory();
+                    resolve(confirmed);
+                } catch (err) {
+                    reject(err);
+                }
+            },
+            modal: {
+                ondismiss: function () {
+                    message.innerHTML = '<p style="color:#b45309;">Payment window closed before completion. Your booking remains pending until payment is completed.</p>';
+                    resolve(null);
+                }
+            },
+            prefill: {
+                name: passengerAccountName ? passengerAccountName.textContent : '',
+                email: passengerAccountEmail ? passengerAccountEmail.textContent.replace('Email: ', '') : '',
+                contact: passengerAccountPhone ? passengerAccountPhone.textContent.replace('Phone: ', '') : ''
+            },
+            notes: {
+                bookingId: String(booking.id),
+                rideId: String(booking.rideId)
+            },
+            theme: {
+                color: '#0b66c3'
+            }
+        };
+
+        const razorpay = new Razorpay(options);
+        razorpay.on('payment.failed', function (response) {
+            const reason = response && response.error && response.error.description ? response.error.description : 'Razorpay payment failed';
+            message.innerHTML = `<p style="color:red;">${reason}</p>`;
+            reject(new Error(reason));
+        });
+        razorpay.open();
+    });
 }
 
 searchForm.addEventListener('submit', async function(e) {
@@ -726,8 +814,8 @@ async function bookRide(rideId) {
     const seats = parseInt(document.getElementById('seats_' + rideId).value, 10);
     const source = document.querySelector('input[name="source"]').value;
     const destination = document.querySelector('input[name="destination"]').value;
-    const gateway = 'NONE';
-    const paymentToken = 'offline_demo';
+    const gateway = paymentConfig.razorpayEnabled ? 'RAZORPAY' : 'NONE';
+    const paymentToken = '';
 
     const resp = await fetch('/bookings/book-with-payment', {
         method: 'POST',
@@ -740,20 +828,29 @@ async function bookRide(rideId) {
 
     if (resp.ok) {
         const data = await resp.json();
-        message.innerHTML = `<p style="color:green;">Booking confirmed! Total: $${data.booking.totalPrice}</p>`;
-        searchForm.reset();
-        resultsContainer.innerHTML = '';
-        if (checkoutPanel) {
-            checkoutPanel.style.display = 'none';
+        if (data.payment && data.payment.gateway === 'RAZORPAY' && data.payment.status === 'PENDING') {
+            message.innerHTML = '<p style="color:#004b8f;">Razorpay order created. Complete the payment in the popup to confirm your booking.</p>';
+            try {
+                await openRazorpayCheckout(data);
+            } catch (err) {
+                message.innerHTML = `<p style="color:red;">${err.message || 'Unable to open Razorpay checkout'}</p>`;
+            }
+        } else {
+            message.innerHTML = `<p style="color:green;">Booking confirmed! Total: $${data.booking.totalPrice}</p>`;
+            searchForm.reset();
+            resultsContainer.innerHTML = '';
+            if (checkoutPanel) {
+                checkoutPanel.style.display = 'none';
+            }
+            if (stripeCard) {
+                try { stripeCard.clear(); } catch (_) { /* ignore */ }
+            }
+            selectedRideId = null;
+            selectedSeats = null;
+            selectedFare = null;
+            loadBookings();
+            loadPaymentHistory();
         }
-        if (stripeCard) {
-            try { stripeCard.clear(); } catch (_) { /* ignore */ }
-        }
-        selectedRideId = null;
-        selectedSeats = null;
-        selectedFare = null;
-        loadBookings();
-        loadPaymentHistory();
         return;
     }
 
