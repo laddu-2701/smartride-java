@@ -237,16 +237,13 @@
                     <h4 style="font-size:0.9rem; margin:0.4rem 0 0.3rem;">Payment method</h4>
                     <div style="border:1px solid #cfdff0; border-radius:8px; padding:0.5rem 0.6rem; background:#ffffff;">
                         <label style="display:flex; align-items:flex-start; gap:0.4rem; font-size:0.86rem;">
-                                <input type="radio" name="paymentMethod" checked disabled>
+                            <input type="radio" name="paymentMethod" checked disabled>
                                 <span>
                                     <strong>Razorpay Secure Checkout</strong><br>
                                     <span style="color:#4f6d88;">Pay with UPI, cards, wallets, or netbanking through Razorpay.</span>
                                 </span>
                         </label>
-                        <div id="stripeCardPanel" style="margin-top:0.5rem;">
-                            <div id="card-element"></div>
-                            <div id="card-errors"></div>
-                        </div>
+                        <button type="button" id="razorpayPayBtn" style="margin-top:0.65rem; display:none;">Pay with Razorpay</button>
                     </div>
                 </div>
             </div>
@@ -276,10 +273,8 @@ const logoutBtn = document.getElementById('logoutBtn');
 const paymentHistory = document.getElementById('paymentHistory');
 const notificationHistory = document.getElementById('notificationHistory');
 const driverFeedbackSection = document.getElementById('driverFeedbackSection');
-const stripeCardPanel = document.getElementById('stripeCardPanel');
 const checkoutPanel = document.getElementById('checkoutPanel');
 const orderSummary = document.getElementById('orderSummary');
-const cardErrors = document.getElementById('card-errors');
 const passengerAccountBar = document.getElementById('passengerAccountBar');
 const passengerAccountName = document.getElementById('passengerAccountName');
 const passengerAccountRole = document.getElementById('passengerAccountRole');
@@ -331,8 +326,6 @@ if (themeToggle) {
     });
 }
 
-let stripeClient = null;
-let stripeCard = null;
 let selectedRideId = null;
 let selectedSeats = null;
 let selectedFare = null;
@@ -344,6 +337,7 @@ let paymentConfig = {
     razorpayKeyId: '',
     razorpayCurrency: 'INR'
 };
+const razorpayPayBtn = document.getElementById('razorpayPayBtn');
 
 function initPassengerMap() {
     try {
@@ -623,17 +617,11 @@ async function initStripe() {
         if (!resp.ok) return; // silently skip — Stripe optional
 
         paymentConfig = await resp.json();
-        if (!paymentConfig.stripeEnabled || !paymentConfig.stripePublishableKey) return; // no Stripe keys — checkout stays in sandbox mode
-
-        stripeClient = Stripe(paymentConfig.stripePublishableKey);
-        const elements = stripeClient.elements();
-        stripeCard = elements.create('card', { hidePostalCode: true });
-        stripeCard.mount('#card-element');
-        stripeCard.on('change', function(event) {
-            cardErrors.textContent = event.error ? event.error.message : '';
-        });
+        if (razorpayPayBtn) {
+            razorpayPayBtn.style.display = paymentConfig.razorpayEnabled ? 'inline-flex' : 'none';
+        }
     } catch (_) {
-        // Stripe unavailable — continue without payment UI
+        // Payment config unavailable — continue without payment UI
     }
 }
 
@@ -841,9 +829,6 @@ async function bookRide(rideId) {
             resultsContainer.innerHTML = '';
             if (checkoutPanel) {
                 checkoutPanel.style.display = 'none';
-            }
-            if (stripeCard) {
-                try { stripeCard.clear(); } catch (_) { /* ignore */ }
             }
             selectedRideId = null;
             selectedSeats = null;

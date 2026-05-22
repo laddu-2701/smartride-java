@@ -48,10 +48,7 @@
             <p style="font-size:0.78rem; color:#6b7280; margin:0 0 0.3rem;">
                 Pay safely with UPI, cards, wallets, or netbanking through Razorpay.
             </p>
-            <div id="stripeCardPanel" style="margin-top:0.4rem;">
-                <div id="card-element" style="background:#fff; border:1px solid #cfdff0; border-radius:8px; padding:0.65rem;"></div>
-                <div id="card-errors" style="color:#c0392b; font-size:0.82rem; margin-top:0.35rem;"></div>
-            </div>
+            <button type="button" id="razorpayPayBtn" style="margin-top:0.5rem; display:none;">Pay with Razorpay</button>
         </div>
     </div>
     
@@ -70,6 +67,7 @@ let paymentConfig = {
     razorpayKeyId: '',
     razorpayCurrency: 'INR'
 };
+const razorpayPayBtn = document.getElementById('razorpayPayBtn');
 if (!token) {
     alert('Please login first');
     window.location.href = '/login.html';
@@ -88,18 +86,14 @@ async function initStripe() {
     }
 
     paymentConfig = await resp.json();
-    if (!paymentConfig.stripeEnabled || !paymentConfig.stripePublishableKey) {
-        document.getElementById('checkoutPanel').style.display = 'none';
-        return; // Stripe optional — hide panel, booking still works in sandbox mode
+    if (razorpayPayBtn) {
+        razorpayPayBtn.style.display = paymentConfig.razorpayEnabled ? 'inline-flex' : 'none';
     }
 
-    stripeClient = Stripe(paymentConfig.stripePublishableKey);
-    const elements = stripeClient.elements();
-    stripeCard = elements.create('card', { hidePostalCode: true });
-    stripeCard.mount('#card-element');
-    stripeCard.on('change', function(event) {
-        document.getElementById('card-errors').textContent = event.error ? event.error.message : '';
-    });
+    if (!paymentConfig.stripeEnabled || !paymentConfig.stripePublishableKey) {
+        document.getElementById('checkoutPanel').style.display = 'none';
+        return; // payment optional — hide panel if nothing is configured
+    }
 }
 
 initStripe();
